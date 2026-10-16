@@ -1,0 +1,48 @@
+[
+events: [
+    ['boot [ render ]]
+    ['fix [
+        ev-parse current-value
+        f-x: ev 0  f-y: ev 1  f-acc: ev 2  f-have: 1
+        refresh-geom
+        fix-update
+        render ]]
+    ['clock [
+        ev-parse current-value
+        j-now: ev 0  j-date: ev 1  j-wday: ev 2
+        time-update
+        render ]]
+    ['rt [
+        ev-parse current-value
+        rt-ok: 1  rt-trip: ev 0  rt-delay: ev 1  rt-t: j-now
+        time-update
+        render ]]
+    ['rt-lost [ rt-ok: 0  time-update  render ]]
+    ['choose [ ev-parse current-value  choose ev 0  render ]]
+    ['accept [ accept  render ]]
+    ['board [ board-cmd  render ]]
+    ['alight [ alight-cmd  render ]]
+    ['where [ j-where: 1  render ]]
+    ['where-close [ j-where: 0  render ]]
+    ['cancel [ reset-journey  render ]]
+    ['done [ reset-journey  render ]]
+    ['cq-begin [ ev-parse current-value  cq-reset ev 0 ev 1  render ]]
+    ['cq-stop [ ev-parse current-value  cq-add cq-st 0 2 3 40  render ]]
+    ['cq-dst [ ev-parse current-value  cq-add cq-ds 1 2 3 24  render ]]
+    ['cq-trip [ ev-parse current-value  cq-add cq-tr 2 5 8 24  render ]]
+    ['cq-call [ ev-parse current-value  cq-add cq-cl 3 4 4 64  render ]]
+    ['cq-arr [ ev-parse current-value  cq-add cq-ar 4 3 3 48  render ]]
+    ['cq-end [ ev-parse current-value  either = ev 0 cn 5 [ block-set! cq-n 6 1  on-candidates ] [ none ]  render ]]
+    ['cq-rt [ ev-parse current-value  cq-rt ev 0 ev 1  render ]]
+    ['cq-rt-lost [ cq-rt-off 0 cn 2  render ]]
+    ['cq-score [ cs-score  render ]]
+    ['trip-begin [ ev-parse current-value  tt-begin ev 0 ev 1  render ]]
+    ['trip-times [ ev-parse current-value  tt-put ev 0 1 ev-k  render ]]
+    ['trip-ready [ ev-parse current-value  on-trip-ready ev 0  render ]]
+]
+do-event: [
+    event-row: select events current-event
+    either event-row [ do block-at event-row 1 ] [ render ]
+]
+route: [ render ]
+]

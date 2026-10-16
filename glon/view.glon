@@ -1,0 +1,113 @@
+[
+op: func [ch] [ e-byte ch ]
+fv: func [v] [ e-byte 32 e-int v ]
+st-code: func [s] [
+    either = s 'IDLE [ 0 ] [
+    either = s 'DESTINATION_SELECTED [ 1 ] [
+    either = s 'JOURNEY_PROPOSED [ 2 ] [
+    either = s 'WALKING_TO_STOP [ 3 ] [
+    either = s 'WAITING_FOR_BUS [ 4 ] [
+    either = s 'ON_BUS [ 5 ] [
+    either = s 'WALKING_FINAL [ 6 ] [
+    either = s 'ARRIVED [ 7 ] [ 8 ] ] ] ] ] ] ] ]
+]
+al-code: func [a] [
+    either = a 'STAY_ON [ 1 ] [
+    either = a 'GET_READY [ 2 ] [
+    either = a 'PRESS_STOP [ 3 ] [
+    either = a 'GET_OFF [ 4 ] [ 0 ] ] ] ]
+]
+lv-code: func [l] [
+    either = l 'LEAVE_IN [ 1 ] [
+    either = l 'LEAVE_NOW [ 2 ] [
+    either = l 'MISSED [ 3 ] [
+    either = l 'WAIT [ 4 ] [
+    either = l 'WALK [ 5 ] [ 0 ] ] ] ] ]
+]
+fare-code: func [] [
+    either = fare-r 'free [ 1 ] [
+    either = fare-r 'paid [ 2 ] [
+    either = fare-r 'concession [ 3 ] [ 0 ] ] ]
+]
+acts: func [st] [
+    either = st 'IDLE [ 1 ] [
+    either = st 'DESTINATION_SELECTED [ 32 ] [
+    either = st 'JOURNEY_PROPOSED [ 50 ] [
+    either = st 'WALKING_TO_STOP [ 52 ] [
+    either = st 'WAITING_FOR_BUS [ 52 ] [
+    either = st 'ON_BUS [ 56 ] [
+    either = st 'WALKING_FINAL [ 48 ] [ 64 ] ] ] ] ] ] ]
+]
+dir-code: func [ex ey] [
+    ax: abs clampv ex
+    ay: abs clampv ey
+    either > * ay 1000 * ax 2414 [ either > ey 0 [ 0 ] [ 4 ] ] [
+        either > * ax 1000 * ay 2414 [ either > ex 0 [ 2 ] [ 6 ] ] [
+            either > ey 0 [ either > ex 0 [ 1 ] [ 7 ] ] [ either > ex 0 [ 3 ] [ 5 ] ]
+        ]
+    ]
+]
+strip-rows: func [k lim] [
+    either < k j-alight [
+        either < - k j-next lim [ fv k  strip-rows + k 1 lim ] [ none ]
+    ] [ none ]
+]
+v-strip: func [] [
+    lim: c 'strip-max
+    shown: either < - j-alight j-next lim [ - j-alight j-next ] [ lim ]
+    op 84
+    fv either > j-next j-board [ - j-next 1 ] [ -1 ]
+    fv j-alight
+    fv - - j-alight j-next shown
+    strip-rows j-next lim
+    op 10
+]
+v-route: func [] [ op 82 op 32 e-text rt-name op 124 e-text rt-head op 10 ]
+v-dest-walk: func [] [
+    dm: to-dest-m
+    op 68 fv dm fv dir-code - j-dx f-x - j-dy f-y fv walk-s dm op 10
+]
+v-bus-option: func [] [
+    v-route
+    wm: to-board-m
+    op 79
+    either < j-opt 0 [ fv -1 fv 0 fv 0 fv 0 fv 0 ] [
+        fv j-trip  fv eta  fv board-time  fv live-now  fv leave-s
+    ]
+    fv walk-s wm  fv wm  fv fare-code  fv fare-ri  fv j-board  fv j-alight
+    op 10
+    either < fare-ri 0 [ none ] [ op 70 op 32 e-text block-at fare-reasons fare-ri op 10 ]
+]
+v-on-bus: func [] [
+    v-route
+    op 66 fv j-board fv j-alight fv j-next fv stops-to-go
+    fv - sv j-alight 1 off-at - j-next 1 m-s
+    fv m-s
+    op 10
+    v-strip
+]
+v-cand: func [] [
+    op 67 fv cn 5
+    fv block-at cq-best 0  fv block-at cq-best 1  fv block-at cq-best 2
+    fv cn 0 fv cn 1 fv cn 2 fv cn 3 fv cn 4 fv cn 7
+    op 10
+]
+render: func [] [
+    e-clear
+    st: j-st
+    op 83
+    fv st-code st  fv al-code j-alert  fv lv-code j-leave  fv j-buzz
+    fv j-dest  fv j-note  fv j-where  fv rt-live  fv f-have  fv j-walk
+    fv acts st
+    op 10
+    either = st 'ON_BUS [ v-on-bus ] [
+    either = st 'WALKING_FINAL [ v-dest-walk  op 66 fv j-board fv j-alight fv j-next fv 0 fv 0 fv m-s op 10 ] [
+    either = st 'JOURNEY_PROPOSED [ either j-walk [ v-dest-walk ] [ v-bus-option ] ] [
+    either = st 'WALKING_TO_STOP [ v-bus-option ] [
+    either = st 'WAITING_FOR_BUS [ v-bus-option ] [ none ] ] ] ] ]
+    either = cn 6 1 [ v-cand ] [ none ]
+    either = j-q 1 [ op 81 fv j-qgen fv j-rad fv j-rad fv c 'horizon-s fv f-x fv f-y fv j-dx fv j-dy op 10 ] [ none ]
+    either = j-g 1 [ op 71 fv j-pat fv j-trip op 10 ] [ none ]
+    e-finish
+]
+]

@@ -1,0 +1,24 @@
+{
+  "_comment": "Public demonstration profile for the GitHub Pages test build. Generic defaults only; not any person's profile. Destinations are public landmarks used by the demo scenarios.",
+  "favourites": [
+    { "id": "te-papa", "name": "Te Papa (demo)", "lat": -41.29060, "lon": 174.78210 },
+    { "id": "town", "name": "Cuba Mall (demo)", "lat": -41.29130, "lon": 174.77545 }
+  ],
+  "concession": null,
+  "preferences": {
+    "walk-cms": 120,
+    "walk-mult": 20,
+    "walk-comfort-m": 300,
+    "walk-steep-mult": 2,
+    "walk-tolerance-m": 600,
+    "walk-over-mult": 4,
+    "walk-max-m": 800,
+    "wait-mult": 15,
+    "ivt-mult": 10,
+    "arrive-mult": 6,
+    "buffer-s": 60,
+    "xfer-penalty-s": 300,
+    "xfer-risk": 2,
+    "walk-cond": 1
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "DoorDash (working title)",
+  "short_name": "DoorDash",
+  "description": "A public-transport journey companion that stays with you from your door to your destination.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f1ea",
+  "theme_color": "#0f3d3e",
+  "icons": [
+    { "src": "web/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

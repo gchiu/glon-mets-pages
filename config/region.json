@@ -1,0 +1,5 @@
+{
+  "_comment": "Host platform configuration for the region: the time zone the clock is reported in, and the origin of the local metre plane Glon works on. Not journey logic.",
+  "timezone": "Pacific/Auckland",
+  "origin": { "lat": -41.29, "lon": 174.76 }
+}

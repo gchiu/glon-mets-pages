@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f3d3e">
+<title>DoorDash D1</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="web/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="web/style.css">
+</head>
+<body>
+<main id="view"><div id="vb" aria-live="polite"></div><div id="va"></div></main>
+<details class="dev" open>
+  <summary>Simulation / test controls</summary>
+  <div class="row">
+    <select id="scenario" aria-label="Scenario"></select>
+    <select id="speed" aria-label="Speed">
+      <option value="1">1×</option><option value="5">5×</option>
+      <option value="10" selected>10×</option><option value="20">20×</option>
+    </select>
+  </div>
+  <div class="row">
+    <label><input type="checkbox" id="autotap" checked> simulated taps</label>
+    <label><input type="checkbox" id="noise"> noisy GPS</label>
+  </div>
+  <div class="row">
+    <button id="start-sim">Restart simulation</button>
+    <button id="droprt">Drop live data</button>
+    <button id="start-live">Use real GPS</button>
+  </div>
+  <p id="status"></p>
+</details>
+<script type="module" src="web/app.js"></script>
+</body>
+</html>

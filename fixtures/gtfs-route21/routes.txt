@@ -1,0 +1,2 @@
+route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,route_url,route_color,route_text_color,route_sort_order
+210,NBM,"21","Karori (Wrights Hill) - Kelburn - Courtenay Place","Courtenay Place - Kelburn - Karori (Wrights Hill)",3,,e0578c,000000,210

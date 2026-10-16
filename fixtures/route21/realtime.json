@@ -1,0 +1,6 @@
+{
+  "_comment": "FIXTURE realtime for simulation, shaped like a GTFS-Realtime trip update reduced to what DoorDash uses: a delay in seconds for a GTFS trip_id. Emitted every every_s seconds from 'from'. The trip is the real 09:05 Karori Mall departure on the fixture service date (20261015).",
+  "updates": [
+    { "trip_id": "21__1__116__NBM__92__92_20261011", "delay": 60, "from": "08:55:00", "every_s": 30 }
+  ]
+}

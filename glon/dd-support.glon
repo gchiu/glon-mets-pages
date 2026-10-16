@@ -1,0 +1,42 @@
+[
+s/byte-at: masm 2 [
+    LIT SCRATCH_B !
+    LIT T_STRING SUB LIT 1 ADD LIT SCRATCH_B @ LIT 16 DIV ADD @
+    LIT 16 MUL ARITY 1 EXIT
+]
+ev-ints: new-block 8
+ev-k: 0
+ev: func [k] [ block-at ev-ints k ]
+ev-parse: func [s] [
+    ev-k: 0
+    n: s/length s
+    either > n 48 [ n: 48 ] [ none ]
+    ev-go s 0 n 0 0 0
+    ev-k
+]
+ev-go: func [s i n acc neg inn] [
+    either < i n [
+        b: s/byte-at s i
+        either = b 45 [ ev-flush acc neg inn  ev-go s + i 1 n 0 1 1 ] [
+            either >= b 48 [
+                either <= b 57 [ ev-go s + i 1 n + * acc 10 - b 48 neg 1 ] [
+                    ev-flush acc neg inn  ev-go s + i 1 n 0 0 0
+                ]
+            ] [ ev-flush acc neg inn  ev-go s + i 1 n 0 0 0 ]
+        ]
+    ] [ ev-flush acc neg inn ]
+]
+ev-flush: func [acc neg inn] [
+    either inn [
+        either < ev-k 8 [
+            block-set! ev-ints ev-k either neg [ - 0 acc ] [ acc ]
+            ev-k: + ev-k 1
+        ] [ none ]
+    ] [ none ]
+]
+isq: func [n] [ either < n 2 [ n ] [ isq-it n either < n 11586 [ n ] [ 11586 ] ] ]
+isq-it: func [n x] [
+    y: / + x / n x 2
+    either < y x [ isq-it n y ] [ x ]
+]
+]

@@ -1,0 +1,72 @@
+stop_id,stop_code,stop_name,stop_desc,stop_lat,stop_lon,zone_id,stop_url,location_type,parent_station,stop_timezone
+5914,5914,Salamanca Road at The Terrace,,-41.28879378,174.7714192,1,,0,,Pacific/Auckland
+6224,6224,Kilbirnie - Stop A,,-41.31716999999999,174.79587,3/2,,0,,Pacific/Auckland
+5381,5381,Birdwood Street opposite Braithwaite Street,,-41.28385942,174.75058172,3,,0,,Pacific/Auckland
+6909,6909,Ghuznee Street at Cuba Street (opposite),,-41.293456,174.776428,1,,0,,Pacific/Auckland
+5384,5384,Plymouth Street (near 3),,-41.28687342,174.7497529,3,,0,,Pacific/Auckland
+4383,4383,Messines Road (near 22),,-41.28544372999999,174.7489983,3,,0,,Pacific/Auckland
+5394,5394,Beauchamp Street (near 60),,-41.28910709,174.7390648,3,,0,,Pacific/Auckland
+4384,4384,Plymouth Street at Messines Road,,-41.28659787,174.7501038,3,,0,,Pacific/Auckland
+6218,6218,Moxham Avenue at Raupo Street (near 87),,-41.30749464,174.7930105,2,,0,,Pacific/Auckland
+5514,5514,Courtenay Place at Courtenay Central,,-41.29289647,174.77989,1,,0,,Pacific/Auckland
+5000,5000,Courtenay Place - Stop A,,-41.29379439,174.7823273,1,,0,,Pacific/Auckland
+4393,4393,Beauchamp Street at Verviers Street,,-41.29026673,174.7398122,3,,0,,Pacific/Auckland
+4915,4915,Te Herenga Waka – Victoria University of Wellington Kelburn - Stop A,,-41.28818818,174.76808961,1/2,,0,,Pacific/Auckland
+6027,6027,Rongotai Road (near 119),,-41.31848387,174.7991619,3,,0,,Pacific/Auckland
+4390,4390,Campbell Street (near 171),,-41.29388411,174.7448049,3,,0,,Pacific/Auckland
+6906,6906,The Terrace at Salamanca Road,,-41.2892366,174.7719088,1,,0,,Pacific/Auckland
+4396,4396,Karori Mall - Beauchamp Street (Recreation Centre),,-41.28530028,174.73724338,3,,0,,Pacific/Auckland
+5391,5391,Campbell Street (near 106),,-41.29157574,174.7425937,3,,0,,Pacific/Auckland
+5327,5327,Karori Mall - Karori Road (opposite),,-41.28490242,174.737162,3,,0,,Pacific/Auckland
+7908,7908,Ghuznee Street at Willis Street,,-41.2924613,174.7730709,1,,0,,Pacific/Auckland
+4388,4388,Croydon Street opposite Versailles Street,,-41.29177888,174.7470178,3,,0,,Pacific/Auckland
+5916,5916,Upland Road (near 39),,-41.28770954,174.7657772,2,,0,,Pacific/Auckland
+6216,6216,Waitoa Road at Bus Tunnel,,-41.30220991,174.79209335,2,,0,,Pacific/Auckland
+5383,5383,Messines Road (near 15),,-41.28535188,174.7491152,3,,0,,Pacific/Auckland
+6553,6553,St Patrick's College - Evans Bay Parade,,-41.31400726476046,174.79553839000604,2/3,,0,,Pacific/Auckland
+5385,5385,Duthie Street at Plymouth Street,,-41.28753632,174.7476211,3,,0,,Pacific/Auckland
+4916,4916,Upland Road opposite Glasgow Street,,-41.28743944,174.7657699,2,,0,,Pacific/Auckland
+4319,4319,Karori Tunnel - Stop A,,-41.28703440999999,174.7569222,2,,0,,Pacific/Auckland
+4389,4389,Croydon Street (near 64),,-41.29395604,174.7460011,3,,0,,Pacific/Auckland
+6910,6910,Taranaki Street at Courtenay Place,,-41.293,174.7787,1,,0,,Pacific/Auckland
+5516,5516,Courtenay Place - Stop C,,-41.29375246,174.7827796,1,,0,,Pacific/Auckland
+4386,4386,Duthie Street at Hurman Street,,-41.2891624,174.7473063,3,,0,,Pacific/Auckland
+4394,4394,Beauchamp Street at Henderson Street,,-41.28919352,174.739306,3,,0,,Pacific/Auckland
+6215,6215,Pirie Street at Bus Tunnel,,-41.29898296999999,174.7881773,1/2,,0,,Pacific/Auckland
+7035,7035,Broadway at Monorgan Road,,-41.32515999999999,174.818646,3,,0,,Pacific/Auckland
+7909,7909,Ghuznee Street at Cuba Street,,-41.2935802,174.7764452,1,,0,,Pacific/Auckland
+5382,5382,Messines Road at Braithwaite Street (near 1),,-41.28436692999999,174.7487307,3,,0,,Pacific/Auckland
+6214,6214,Pirie Street at Porritt Avenue (near 77),,-41.29829421,174.7861281,1,,0,,Pacific/Auckland
+6219,6219,Kilbirnie School - Moxham Avenue,,-41.30879333,174.7925706,2,,0,,Pacific/Auckland
+4381,4381,Birdwood Street at Braithwaite Street,,-41.28379968,174.7506154,3,,0,,Pacific/Auckland
+6213,6213,Brougham Street (near 51),,-41.29687478,174.78538027,1,,0,,Pacific/Auckland
+4387,4387,Croydon Street (near 2),,-41.2905346,174.74685641,3,,0,,Pacific/Auckland
+4918,4918,Kelburn Normal School - Upland Road,,-41.28702264999999,174.76084685,2,,0,,Pacific/Auckland
+6217,6217,Hataitai - Stop B,,-41.30387144,174.7938613,2,,0,,Pacific/Auckland
+6221,6221,Hamilton Road at Wellington Road (near 115),,-41.31169948,174.7936844,2,,0,,Pacific/Auckland
+5917,5917,Kelburn Village - Upland Road (St Michael's),,-41.28928589,174.7628342,2,,0,,Pacific/Auckland
+5386,5386,Duthie Street at Hurman Street (near 71),,-41.28933885,174.7475498,3,,0,,Pacific/Auckland
+4391,4391,Campbell Street (near 133),,-41.29165673,174.743193,3,,0,,Pacific/Auckland
+5390,5390,Campbell Street (near 136),,-41.29334933,174.7444323,3,,0,,Pacific/Auckland
+4320,4320,Zealandia - Chaytor Street (at Tunnel),,-41.28710344,174.75478538,2/3,,0,,Pacific/Auckland
+5395,5395,Beauchamp Street at Dasent Street,,-41.2878556,174.7384345,3,,0,,Pacific/Auckland
+4385,4385,Duthie Street at Gipps Street,,-41.28753813,174.7475018,3,,0,,Pacific/Auckland
+4392,4392,Verviers Street at Kano Street,,-41.28997496,174.7412375,3,,0,,Pacific/Auckland
+4382,4382,Messines Road at Braithwaite Street (near 2),,-41.28436356999999,174.74859065,3,,0,,Pacific/Auckland
+5392,5392,Verviers Street at Kano Street (near 39),,-41.29015684,174.7411229,3,,0,,Pacific/Auckland
+6220,6220,Kupe Street at Hamilton Road,,-41.31025845,174.7929054,2,,0,,Pacific/Auckland
+5388,5388,Croydon Street at Versailles Street,,-41.29186528999999,174.747259,3,,0,,Pacific/Auckland
+6212,6212,Elizabeth Street (near 7),,-41.2958103,174.7836717,1,,0,,Pacific/Auckland
+5319,5319,Karori Tunnel - Stop B,,-41.2873982,174.7566931,2,,0,,Pacific/Auckland
+5380,5380,Zealandia - Birdwood Street,,-41.28671614999999,174.7541671,2/3,,0,,Pacific/Auckland
+4395,4395,Beauchamp Street opposite Dasent Street,,-41.28767372,174.7385491,3,,0,,Pacific/Auckland
+7907,7907,The Terrace opposite MacDonald Crescent,,-41.2909638,174.7708808,1,,0,,Pacific/Auckland
+4917,4917,Kelburn Village - Upland Road (near 94),,-41.28902492,174.7622301,2,,0,,Pacific/Auckland
+7910,7910,Taranaki Street at Courtenay Place (near 72),,-41.29337248,174.778231,1,,0,,Pacific/Auckland
+6028,6028,Rongotai Road at Troy Street,,-41.31886671,174.8011461,3,,0,,Pacific/Auckland
+5393,5393,Beauchamp Street (near 76),,-41.290247,174.739651,3,,0,,Pacific/Auckland
+5918,5918,Kelburn Normal School - Upland Rd (opposite),,-41.28724432,174.7608686,2,,0,,Pacific/Auckland
+5915,5915,Te Herenga Waka – Victoria University of Wellington Kelburn - Stop B,,-41.28919,174.7678,1/2,,0,,Pacific/Auckland
+6908,6908,Ghuznee Street at Victoria Street,,-41.292494,174.773479,1,,0,,Pacific/Auckland
+5389,5389,Croydon Street (near 49),,-41.29422796,174.7458889,3,,0,,Pacific/Auckland
+5002,5002,Courtenay Place at St James Theatre,,-41.29316472,174.7800168,1,,0,,Pacific/Auckland

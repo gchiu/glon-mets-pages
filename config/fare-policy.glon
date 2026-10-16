@@ -1,0 +1,15 @@
+[
+fare-holidays: [ 20261026 20261225 20261228 20270101 20270104 ]
+fare-rules: [
+    [date-range 20261023 20261023 0 all free 0]
+    [holiday 0 0 0 all free 1]
+    [weekend 0 0 0 all free 2]
+    [always 0 0 0 all paid 3]
+]
+fare-reasons: reduce [
+    "Demo: free-travel event day"
+    "Demo: public holiday"
+    "Demo: weekend"
+    "Demo: standard fare"
+]
+]

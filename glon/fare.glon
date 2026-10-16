@@ -1,0 +1,35 @@
+[
+fare-r: 'unknown
+fare-ri: -1
+fr: func [k i] [ block-at block-at fare-rules k i ]
+who-ok: func [w] [ either = w 'all [ 1 ] [ = w pf-conc ] ]
+in-list: func [blk i n v] [
+    either < i n [ either = block-at blk i v [ 1 ] [ in-list blk + i 1 n v ] ] [ 0 ]
+]
+has-digit: func [days dg] [
+    either > days 0 [ either = mod days 10 dg [ 1 ] [ has-digit / days 10 dg ] ] [ 0 ]
+]
+rule-hit: func [k tt dt wd] [
+    kind: fr k 0
+    either who-ok fr k 4 [
+        either = kind 'always [ 1 ] [
+        either = kind 'date-range [ either >= dt fr k 1 [ <= dt fr k 2 ] [ 0 ] ] [
+        either = kind 'holiday [ in-list fare-holidays 0 block-len fare-holidays dt ] [
+        either = kind 'weekend [ >= wd 6 ] [
+        either = kind 'window [
+            either has-digit fr k 1 wd [ either >= tt fr k 2 [ < tt fr k 3 ] [ 0 ] ] [ 0 ]
+        ] [ 0 ] ] ] ] ]
+    ] [ 0 ]
+]
+fe-go: func [k n tt dt wd] [
+    either < k n [
+        either rule-hit k tt dt wd [ fare-r: fr k 5  fare-ri: fr k 6 ] [ fe-go + k 1 n tt dt wd ]
+    ] [ none ]
+]
+fare-eval: func [tt dt wd] [
+    fare-r: 'unknown
+    fare-ri: -1
+    fe-go 0 block-len fare-rules tt dt wd
+    fare-r
+]
+]
