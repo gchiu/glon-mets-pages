@@ -11,7 +11,7 @@ const ints = (s) => s.trim().split(/\s+/).filter(Boolean).map(Number);
 
 export function readState(script) {
   const st = { acts: [], option: null, bus: null, destWalk: null, strip: null, fareReason: null, route: null, head: null,
-    candidate: null, request: null, need: null };
+    candidate: null, request: null, need: null, realtime: null };
   for (const line of script.split("\n")) {
     if (!line) continue;
     const op = line[0], rest = line.slice(1);
@@ -21,8 +21,8 @@ export function readState(script) {
         where, rt, fix, walkOnly: walk });
       st.acts = ACTS.filter((_, i) => acts & (1 << i));
     } else if (op === "O") {
-      const [trip, eta, boardTime, live, leaveIn, walkS, walkM, fare, reason, board, alight] = ints(rest);
-      st.option = trip < 0 ? null : { trip, eta, boardTime, live, leaveIn };
+      const [trip, eta, boardTime, live, leaveIn, walkS, walkM, fare, reason, board, alight, delay = 0] = ints(rest);
+      st.option = trip < 0 ? null : { trip, eta, boardTime, live, leaveIn, delay };
       Object.assign(st, { walkS, walkM, fare: FARES[fare], fareReasonIndex: reason, board, alight });
     } else if (op === "B") {
       const [board, alight, next, togo, rem, progress] = ints(rest);
@@ -44,6 +44,9 @@ export function readState(script) {
     } else if (op === "G") {
       const [pat, trip] = ints(rest);
       st.need = { pat, trip };
+    } else if (op === "P") {
+      const [gen] = ints(rest);
+      st.realtime = { gen };
     } else if (op === "R") {
       const [name, head] = rest.trim().split("|");
       st.route = name; st.head = head;

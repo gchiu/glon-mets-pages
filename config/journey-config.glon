@@ -15,6 +15,7 @@ cfg: [
     [search-max-m 1500] 
     [horizon-s 3600]    
     [rt-stale-s 120]    
+    [rt-switch-cost 1200] 
     [near-stop-m 30]    
     [board-m 40]        
     [missed-bus-s 180]  

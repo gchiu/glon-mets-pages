@@ -17,6 +17,7 @@ const NOTES = {
   1: "LIKELY MISSED the earlier bus. Showing the next option.",
   2: "You passed your stop. Get off at the next stop.",
   5: "is not set up yet (D1).",
+  6: "Live times changed: this is now the better bus.",
 };
 const ACT_LABEL = { accept: "Start journey", board: "I'm on the bus", alight: "I'm off the bus",
   where: "Where am I?", cancel: "End journey", done: "Done" };
@@ -60,6 +61,13 @@ function fareLine(v) {
   return `<div class="fare">Fare: <b>${word}</b>${v.fareReason ? " · " + esc(v.fareReason) : ""}</div>`;
 }
 
+export function timeTag(o, source = "metlink") {
+  if (!o.live) return `<b>${clock(o.boardTime)}</b> <span class="sched">Scheduled</span>`;
+  const tt = clock(o.boardTime - (o.delay || 0)), late = tt !== clock(o.boardTime) ? ` · timetable ${tt}` : "";
+  const word = source === "metlink" ? "Live" : "Demo";
+  return `<b>${clock(o.boardTime)}</b> <span class="${source === "metlink" ? "live" : "sched"}">${word}</span>${late}`;
+}
+
 function busCard(v, names) {
   if (!v.option) {
     return `<div class="card"><div class="k">NO BUS</div><div class="leave l-MISSED">LIKELY MISSED</div>` +
@@ -71,7 +79,7 @@ function busCard(v, names) {
     : `Walk ${mins(v.walkS)} min (${v.walkM} m) to ${esc(names.stops[v.board] || "")}`;
   return `<div class="card bus"><div class="k">YOUR BUS</div><div class="route">${esc(v.route)}</div>` +
     `<div class="sub">to ${esc(v.head)}</div><div class="eta">${eta}</div>` +
-    `<div class="conf">${o.live ? "Live" : "Timetable only"} · ${clock(o.boardTime)} from ${esc(names.stops[v.board] || "")}</div>` +
+    `<div class="conf">${timeTag(o, names.rtSource)} from ${esc(names.stops[v.board] || "")}</div>` +
     leaveBox(v) + `<div class="walk">${walk}</div>` + fareLine(v) + `</div>`;
 }
 
@@ -98,7 +106,7 @@ function body(v, names) {
         `<div class="route">${esc(v.route)} → ${esc(v.head)}</div><div class="info">` +
         (b.next < names.stops.length ? `Next stop: <b>${esc(names.stops[b.next])}</b><br>` : "") +
         `${b.togo} ${b.togo === 1 ? "stop" : "stops"} to go · about ${mins(b.rem)} min</div>` + strip(v, names) +
-        `<div class="conf">Position: phone GPS · ${v.rt ? "live data OK" : "live data unavailable"}</div>`;
+        `<div class="conf">Position: phone GPS · ${v.rt ? (names.rtSource === "metlink" ? "live data OK" : "demo data") : "timetable"}</div>`;
     }
     case "WALKING_FINAL":
       return `<div class="alert a-WALK">WALKING FINAL</div><h1>${dest}</h1><div class="card"><p>Walk <b>` +

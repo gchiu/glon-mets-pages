@@ -3,6 +3,8 @@ import { readState } from "./view-model.js";
 import { patternSource } from "./glon-data.js";
 export { readState };
 
+const MATCH_S = 90;
+
 export class JourneyHost {
   constructor(machine, proj, { onRender = () => {}, effects = null, transit = null } = {}) {
     this.machine = machine;
@@ -13,7 +15,9 @@ export class JourneyHost {
     this.record = machine.html;
     this.state = readState(this.record);
     this.lastClock = null;
-    this.delays = new Map();          // latest realtime delay per tripNo (facts already sent)
+    this.delays = new Map();          // trip-wide realtime per tripNo: { delay, seen }
+    this.stopFacts = new Map();       // latest stop-predictions answer per stopId: { seen, facts }
+    this.sentRt = new Map();          // call ref -> the realtime fact Glon last received for it
     this.loadedPatterns = new Set();  // patterns glon_load-ed this session (never twice)
     this.activePattern = null;        // the pattern of Glon's chosen trip (for names)
     this.answeredQ = -1;
@@ -26,32 +30,80 @@ export class JourneyHost {
     return this.#send("fix", `${x} ${y} ${Math.max(0, Math.round(accuracy))}`);
   }
   clock(time) { this.lastClock = time; return this.#send("clock", `${time.secs} ${time.date} ${time.weekday}`); }
-  realtime({ trip, delay }) {
-    this.delays.set(trip, delay);
-    const ref = this.candidateSet ? this.candidateSet.trips.findIndex((t) => t.tripNo === trip) : -1;
-    if (ref >= 0) this.#send("cq-rt", `${ref} ${delay}`);
-    return this.#send("rt", `${trip} ${delay}`);
+  realtime({ trip, delay, seen = this.#now() }) {
+    this.delays.set(trip, { delay, seen });
+    this.#sendCalls((c, t) => t.tripNo === trip);
+    return this.realtimeEnd(seen);
   }
+  stopRealtime(stopId, facts, seen) {
+    this.stopFacts.set(String(stopId), { seen, facts });
+    this.#sendCalls((c, t, s) => s.stopId === String(stopId));
+  }
+  realtimeEnd(seen = this.#now()) { return this.#send("cq-rt-end", String(seen)); }
   realtimeLost() {
     this.delays.clear();
-    this.#send("cq-rt-lost");
+    this.stopFacts.clear();
+    this.sentRt.clear();
     return this.#send("rt-lost");
   }
   command(name, value) { return this.#send(name, value); }
 
+  realtimeStops(max = 8) {
+    const set = this.candidateSet, p = this.state.realtime;
+    if (!set || !p || p.gen !== set.gen) return [];
+    const refs = [...new Set(set.calls.map((c) => c.stopRef))].sort((a, b) => a - b);
+    return refs.slice(0, max).map((r) => set.stops[r].stopId);
+  }
+
+  #now() { return this.lastClock ? this.lastClock.secs : 0; }
+
+  #factFor(c, t, s) {
+    const ans = this.stopFacts.get(s.stopId);
+    if (ans) {
+      let best = null;
+      for (const f of ans.facts) {
+        if (f.tripId !== t.tripId) continue;
+        const off = Math.abs(f.aimed - c.secs);
+        if (off <= MATCH_S && (!best || off < Math.abs(best.aimed - c.secs))) best = f;
+      }
+      return best && best.live ? { delay: best.expected - c.secs, seen: ans.seen } : { delay: 0, seen: -1 };
+    }
+    return this.delays.get(t.tripNo) || null;
+  }
+  #sendCalls(pred) {
+    const set = this.candidateSet;
+    if (!set) return;
+    set.calls.forEach((c, ref) => {
+      const t = set.trips[c.tripRef], s = set.stops[c.stopRef];
+      if (!pred(c, t, s)) return;
+      const f = this.#factFor(c, t, s);
+      if (!f) return;
+      const v = `${f.delay} ${f.seen}`, prev = this.sentRt.get(ref);
+      if (prev === v || (f.seen < 0 && prev === undefined)) return;
+      this.sentRt.set(ref, v);
+      this.#send("cq-rt", `${ref} ${v}`);
+    });
+  }
+
   candidates(set, gen = 1) {
     const xy = (p) => this.proj.toXY(p.lat, p.lon).join(" ");
     this.candidateSet = { ...set, gen };
+    this.sentRt.clear();
     this.#send("cq-begin", `${gen} ${set.truncated ? 1 : 0}`);
     for (const s of set.stops) this.#send("cq-stop", xy(s));
     for (const s of set.dsts) this.#send("cq-dst", xy(s));
     for (const t of set.trips) this.#send("cq-trip", `${t.patNo ?? 0} ${t.dir} ${t.firstArr} ${t.lastArr} ${t.tripNo ?? t.ref}`);
     for (const c of set.calls) this.#send("cq-call", `${c.tripRef} ${c.stopRef} ${c.seq} ${c.secs}`);
     for (const a of set.arrs) this.#send("cq-arr", `${a.dstRef} ${a.seq} ${a.secs}`);
-    set.trips.forEach((t, ref) => { if (this.delays.has(t.tripNo)) this.#send("cq-rt", `${ref} ${this.delays.get(t.tripNo)}`); });
+    this.#sendCalls(() => true);                          // known realtime, original observation times
     return this.#send("cq-end", String(gen));
   }
-  candidateRealtime(tripRef, delay) { return this.#send("cq-rt", `${tripRef} ${delay}`); }
+  candidateRealtime(tripRef, delay, seen = this.#now()) {
+    this.candidateSet.calls.forEach((c, ref) => {
+      if (c.tripRef === tripRef) { this.sentRt.set(ref, `${delay} ${seen}`); this.#send("cq-rt", `${ref} ${delay} ${seen}`); }
+    });
+    return this.realtimeEnd(seen);
+  }
 
   #loadTrip(patNo, tripNo) {
     const p = this.transit.pattern(patNo);

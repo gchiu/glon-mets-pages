@@ -2,12 +2,12 @@
 cq-st: new-block 120
 cq-ds: new-block 72
 cq-tr: new-block 192
-cq-cl: new-block 256
+cq-cl: new-block 384
 cq-ar: new-block 144
 cq-n: new-block 8
-cq-best: new-block 3
+cq-best: new-block 4
 cn: func [k] [ block-at cq-n k ]
-cl: func [i f] [ block-at cq-cl + * 4 i f ]
+cl: func [i f] [ block-at cq-cl + * 6 i f ]
 ar: func [i f] [ block-at cq-ar + * 3 i f ]
 tr: func [i f] [ block-at cq-tr + * 8 i f ]
 cst: func [i f] [ block-at cq-st + * 3 i f ]
@@ -18,7 +18,7 @@ cq-reset: func [gen trunc] [
     block-set! cq-n 5 gen
     block-set! cq-n 6 0
     block-set! cq-n 7 trunc
-    cq-fill cq-best 0 3 -1
+    cq-fill cq-best 0 4 -1
 ]
 cq-put: func [tb base i nf w] [
     either < i w [
@@ -30,10 +30,37 @@ cq-add: func [tb k nf w cap] [
     n: cn k
     either < n cap [ cq-put tb * n w 0 nf w  block-set! cq-n k + n 1 ] [ block-set! cq-n 7 1 ]
 ]
-cq-rt: func [t d] [
-    either < t cn 2 [ block-set! cq-tr + * 8 t 5 d  block-set! cq-tr + * 8 t 6 1 ] [ none ]
+cq-rt: func [i d ob] [
+    either < i cn 3 [
+        t: cl i 0
+        either < ob 0 [
+            block-set! cq-cl + * 6 i 5 0
+            either = tr t 7 i [ block-set! cq-tr + * 8 t 6 0 ] [ none ]
+        ] [
+            block-set! cq-cl + * 6 i 4 d
+            block-set! cq-cl + * 6 i 5 + ob 1
+            block-set! cq-tr + * 8 t 5 d
+            block-set! cq-tr + * 8 t 6 + ob 1
+            block-set! cq-tr + * 8 t 7 i
+        ]
+    ] [ none ]
 ]
-cq-rt-off: func [i n] [ either < i n [ block-set! cq-tr + * 8 i 6 0  cq-rt-off + i 1 n ] [ none ] ]
+cq-rt-off: func [tb w f a b] [
+    either >= a b [ either = a b [ block-set! tb + * w a f 0 ] [ none ] ] [
+        m: / + a b 2
+        cq-rt-off tb w f a m
+        cq-rt-off tb w f + m 1 b
+    ]
+]
+rt-fresh: func [sn] [
+    either = sn 0 [ 0 ] [
+        ag: - j-now - sn 1
+        either > ag c 'rt-stale-s [ 0 ] [ >= ag -60 ]
+    ]
+]
+cq-d: func [i] [
+    either rt-fresh cl i 5 [ cl i 4 ] [ either rt-fresh tr cl i 0 6 [ tr cl i 0 5 ] [ 0 ] ]
+]
 cs-walk: func [tb a b x y] [
     either >= a b [ block-set! tb + * 3 a 2 dist x y block-at tb * 3 a block-at tb + * 3 a 1 ] [
         m: / + a b 2
@@ -70,8 +97,7 @@ cs-ok: 0
 cs-cost: func [c a] [
     cs-ok: 0
     either > ar a 1 cl c 2 [
-        t: cl c 0
-        d: either tr t 6 [ tr t 5 ] [ 0 ]
+        d: cq-d c
         am: cst cl c 1 2
         wo: / * am 100 block-at cs-w 10
         et: - + cl c 3 d j-now

@@ -12,12 +12,7 @@ events: [
         j-now: ev 0  j-date: ev 1  j-wday: ev 2
         time-update
         render ]]
-    ['rt [
-        ev-parse current-value
-        rt-ok: 1  rt-trip: ev 0  rt-delay: ev 1  rt-t: j-now
-        time-update
-        render ]]
-    ['rt-lost [ rt-ok: 0  time-update  render ]]
+    ['rt-lost [ rt-ok: 0  cq-rt-off cq-cl 6 5 0 - cn 3 1  cq-rt-off cq-tr 8 6 0 - cn 2 1  time-update  render ]]
     ['choose [ ev-parse current-value  choose ev 0  render ]]
     ['accept [ accept  render ]]
     ['board [ board-cmd  render ]]
@@ -30,11 +25,11 @@ events: [
     ['cq-stop [ ev-parse current-value  cq-add cq-st 0 2 3 40  render ]]
     ['cq-dst [ ev-parse current-value  cq-add cq-ds 1 2 3 24  render ]]
     ['cq-trip [ ev-parse current-value  cq-add cq-tr 2 5 8 24  render ]]
-    ['cq-call [ ev-parse current-value  cq-add cq-cl 3 4 4 64  render ]]
+    ['cq-call [ ev-parse current-value  cq-add cq-cl 3 4 6 64  render ]]
     ['cq-arr [ ev-parse current-value  cq-add cq-ar 4 3 3 48  render ]]
     ['cq-end [ ev-parse current-value  either = ev 0 cn 5 [ block-set! cq-n 6 1  on-candidates ] [ none ]  render ]]
-    ['cq-rt [ ev-parse current-value  cq-rt ev 0 ev 1  render ]]
-    ['cq-rt-lost [ cq-rt-off 0 cn 2  render ]]
+    ['cq-rt [ ev-parse current-value  cq-rt ev 0 ev 1 ev 2  render ]]
+    ['cq-rt-end [ ev-parse current-value  rt-ok: 1  rt-t: ev 0  cs-resel  time-update  render ]]
     ['cq-score [ cs-score  render ]]
     ['trip-begin [ ev-parse current-value  tt-begin ev 0 ev 1  render ]]
     ['trip-times [ ev-parse current-value  tt-put ev 0 1 ev-k  render ]]

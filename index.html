@@ -11,6 +11,25 @@
 </head>
 <body>
 <main id="view"><div id="vb" aria-live="polite"></div><div id="va"></div></main>
+<details class="dev rt" id="rt-panel">
+  <summary>Metlink realtime</summary>
+  <p id="rt-msg" role="status"></p>
+  <div class="row" id="rt-entry" hidden>
+    <input type="password" id="rt-key" autocomplete="off" spellcheck="false" placeholder="API key" aria-label="Metlink API key">
+    <button id="rt-save" type="button">Save and connect</button>
+    <button id="rt-cancel" type="button" hidden>Cancel</button>
+  </div>
+  <div class="row" id="rt-manage" hidden>
+    <button id="rt-replace" type="button">Replace key</button>
+    <button id="rt-forget" type="button">Forget key</button>
+  </div>
+  <p id="rt-status"></p>
+  <form class="row" id="rt-check-form">
+    <input id="rt-stop" inputmode="numeric" placeholder="Stop number" aria-label="Stop number" size="8">
+    <button type="submit">Check stop</button>
+  </form>
+  <div id="rt-check"></div>
+</details>
 <details class="dev" open>
   <summary>Simulation / test controls</summary>
   <div class="row">

@@ -55,3 +55,14 @@ button { font: inherit; border: 1px solid var(--line); background: var(--card); 
 .dev { max-width: 480px; margin: 0 auto 24px; padding: 0 16px; color: var(--muted); font-size: 0.9rem; }
 .dev .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; align-items: center; }
 .dev button, .dev select { min-height: 40px; padding: 6px 10px; font-size: 0.9rem; }
+.dev input { font: inherit; min-height: 40px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--card); color: var(--fg); flex: 1 1 10em; min-width: 0; }
+.dev table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.dev td, .dev th { text-align: left; padding: 3px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.dev .tc { word-break: break-all; }
+.live { color: var(--go); font-weight: 700; }
+.dev.rt { color: var(--fg); }
+.dev.rt summary { font-weight: 700; }
+.dev.rt #rt-key { flex: 1 1 14em; }
+[hidden] { display: none !important; }
+.sched { color: var(--muted); font-weight: 700; }
