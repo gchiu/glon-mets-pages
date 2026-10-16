@@ -2,7 +2,8 @@
   "_comment": "Public demonstration profile for the GitHub Pages test build. Generic defaults only; not any person's profile. Destinations are public landmarks used by the demo scenarios.",
   "favourites": [
     { "id": "te-papa", "name": "Te Papa (demo)", "lat": -41.29060, "lon": 174.78210 },
-    { "id": "town", "name": "Cuba Mall (demo)", "lat": -41.29130, "lon": 174.77545 }
+    { "id": "town", "name": "Cuba Mall (demo)", "lat": -41.29130, "lon": 174.77545 },
+    { "id": "karori-mall", "name": "Karori Mall (demo)", "lat": -41.28555, "lon": 174.73700 }
   ],
   "concession": null,
   "preferences": {
