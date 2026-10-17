@@ -1,0 +1,25 @@
+[
+fare-types: [ unknown standard supergold ]
+fare-holidays: [
+    20261026  20261225  20261228
+    20270101  20270104  20270125  20270208  20270326  20270329
+    20270426  20270607  20270625  20271025  20271227  20271228
+]
+fare-rules: [
+    [always 0 0 0 unknown unknown 0]
+    [holiday 0 0 0 supergold free 1]
+    [weekend 0 0 0 supergold free 2]
+    [window 12345 32400 54000 supergold free 3]      
+    [window 12345 66600 86400 supergold free 3]      
+    [always 0 0 0 supergold paid 4]                  
+    [always 0 0 0 all paid 5]
+]
+fare-reasons: reduce [
+    "Choose your fare type in Settings"
+    "SuperGold: free on public holidays"
+    "SuperGold: free at weekends"
+    "SuperGold: free at this time"
+    "SuperGold is not free at this time"
+    "Standard fare"
+]
+]

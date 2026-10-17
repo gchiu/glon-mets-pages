@@ -78,6 +78,10 @@ button { font: inherit; border: 1px solid var(--line); background: var(--card); 
 .plist li { display: flex; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .plist li > span:first-child { flex: 1 1 auto; }
 .dest.add { font-weight: 700; }
+.places .big { display: block; width: 100%; min-height: 64px; font-size: 1.25rem; font-weight: 700; margin: 12px 0; }
+.places.setup h1 { font-size: 1.6rem; }
+.settings-link { margin-top: 18px; width: 100%; background: transparent; }
+#home-msg, #place-msg { font-size: 1.05rem; }
 .status:empty { display: none; }
 .dev.rt { color: var(--fg); }
 .dev.rt summary { font-weight: 700; }

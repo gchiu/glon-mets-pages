@@ -1,4 +1,5 @@
 [
+fare-types: [ unknown ]
 fare-holidays: [ 20261026 20261225 20261228 20270101 20270104 ]
 fare-rules: [
     [date-range 20261023 20261023 0 all free 0]

@@ -14,6 +14,9 @@ events: [
         render ]]
     ['rt-lost [ rt-ok: 0  cq-rt-off cq-cl 6 5 0 - cn 3 1  cq-rt-off cq-tr 8 6 0 - cn 2 1  time-update  render ]]
     ['choose [ ev-parse current-value  choose ev 0  render ]]
+    ['pax [ ev-parse current-value
+        pf-conc: either < ev 0 block-len fare-types [ block-at fare-types ev 0 ] [ block-at fare-types 0 ]
+        eval-fare  render ]]
     ['dest-at [ ev-parse current-value  either < ev 0 dest-n [
         block-set! dest-row * 3 ev 0 1  block-set! dest-row + * 3 ev 0 1 ev 1  block-set! dest-row + * 3 ev 0 2 ev 2
     ] [ none ]  render ]]

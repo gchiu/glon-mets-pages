@@ -18,6 +18,42 @@
   <div id="vb" aria-live="polite"></div><div id="va"></div>
   <p id="status" class="status" role="status"></p>
 </main>
+<section id="setup-home" class="places setup" hidden aria-label="Set up Home">
+  <h1 id="setup-home-title">Let's set up Home</h1>
+  <p class="hint">Home is kept only on this device.</p>
+  <button id="home-here" type="button" class="big">Use where I am now</button>
+  <button id="home-other" type="button" class="big">Choose another location</button>
+  <p id="home-msg" role="status"></p>
+  <div id="home-pick" hidden>
+    <h2>The bus stop nearest your home</h2>
+    <input id="home-stop" type="search" autocomplete="off" placeholder="Stop name or number" aria-label="Bus stop name or number">
+    <ul id="home-stops" class="plist"></ul>
+    <h2>Or a location from a map app</h2>
+    <div class="row">
+      <input id="home-coords" autocomplete="off" placeholder="For example -41.2950, 174.7700" aria-label="Location from a map app">
+      <button id="home-coords-use" type="button">Use this</button>
+    </div>
+  </div>
+  <button id="home-cancel" type="button" class="done" hidden>Cancel</button>
+</section>
+<section id="setup-fare" class="places setup" hidden aria-label="Your fare">
+  <h1>What fare do you use?</h1>
+  <button type="button" class="big" data-fare="supergold">SuperGold card</button>
+  <button type="button" class="big" data-fare="standard">Standard fare</button>
+  <p class="hint">You can change this later in Settings.</p>
+  <button id="fare-cancel" type="button" class="done" hidden>Cancel</button>
+</section>
+<section id="settings" class="places" hidden aria-label="Settings">
+  <h1>Settings</h1>
+  <h2>Home</h2>
+  <button id="set-home" type="button" class="big">Change Home</button>
+  <h2>Fare</h2>
+  <p id="set-fare-now"></p>
+  <button id="set-fare" type="button" class="big">Change fare type</button>
+  <h2>Advanced</h2>
+  <div id="settings-advanced"></div>
+  <button id="settings-close" type="button" class="done">Done</button>
+</section>
 <section id="places" class="places" hidden aria-label="My places">
   <h1>Add a place</h1>
   <p class="hint">Places you add are kept only in this browser.</p>

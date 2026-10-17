@@ -51,7 +51,8 @@ export class MyPlaces {
         if (!validPlace(p) || seen.has(p.id)) { this.recovered = true; continue; }
         seen.add(p.id);
         this.places.push({ id: p.id, name: cleanName(p.name), lat: p.lat, lon: p.lon,
-          ...(typeof p.landmark === "string" ? { landmark: p.landmark } : {}) });
+          ...(typeof p.landmark === "string" ? { landmark: p.landmark } : {}),
+          ...(p.home === true && !this.places.some((q) => q.home) ? { home: true } : {}) });
       }
     } catch { this.places = []; this.recovered = true; }
     return this.places;
@@ -71,6 +72,17 @@ export class MyPlaces {
   }
 
   get(id) { return this.places.find((p) => p.id === id) || null; }
+  home() { return this.places.find((p) => p.home) || null; }
+
+  setHome(point) {
+    if (!point || !isCoord(point.lat, 90) || !isCoord(point.lon, 180)) throw new Error("Your location is not known yet.");
+    const h = this.home();
+    if (h) { h.lat = point.lat; h.lon = point.lon; delete h.landmark; this.#save(); return h; }
+    const p = { id: this.#newId(), name: "Home", lat: point.lat, lon: point.lon, home: true };
+    this.places.unshift(p);
+    this.#save();
+    return p;
+  }
 
   addHere(name, fix) {
     const n = cleanName(name);
@@ -115,4 +127,59 @@ export function passengerProfile(profile, builtIn) {
     { id: builtIn.id, name: builtIn.name, lat: builtIn.lat, lon: builtIn.lon },
     { id: "my-place", name: "", lat: null, lon: null },
   ] };
+}
+
+export const FARE_KEY = "dd-fare-v1";
+export const FARE_TYPES = ["supergold", "standard"];
+
+export class FareSetting {
+  constructor(storage = globalThis.localStorage) {
+    this.storage = storage;
+    this.type = null;          // null: not chosen yet -- no fare is assumed
+    this.recovered = false;
+    let raw = null;
+    try { raw = storage ? storage.getItem(FARE_KEY) : null; } catch { raw = null; }
+    if (raw == null) return;
+    try {
+      const doc = JSON.parse(raw);
+      if (doc && doc.v === 1 && FARE_TYPES.includes(doc.type)) this.type = doc.type;
+      else this.recovered = true;
+    } catch { this.recovered = true; }
+  }
+  set(type) {
+    if (!FARE_TYPES.includes(type)) throw new Error("Unknown fare type.");
+    this.type = type;
+    try { this.storage.setItem(FARE_KEY, JSON.stringify({ v: 1, type })); } catch { /* kept for this session */ }
+    return type;
+  }
+}
+
+export function setupStep(places, fare) {
+  if (!places.home()) return "home";
+  if (!fare.type) return "fare";
+  return "ready";
+}
+
+export function parseLocation(text) {
+  const t = String(text || "");
+  const num = String.raw`(-?\d+(?:\.\d+)?)`;
+  const m = new RegExp(String.raw`@${num},\s*${num}`).exec(t)
+    || new RegExp(String.raw`[?&](?:q|query|ll)=${num}(?:,|%2C)\s*${num}`, "i").exec(t)
+    || new RegExp(String.raw`^\s*${num}\s*[,\s]\s*${num}\s*$`).exec(t);
+  if (!m) return null;
+  const lat = Number(m[1]), lon = Number(m[2]);
+  return isCoord(lat, 90) && isCoord(lon, 180) ? { lat, lon } : null;
+}
+
+export function findStops(stops, query, max = 8) {
+  const q = cleanName(query).toLowerCase();
+  if (!q) return [];
+  const words = q.split(" ");
+  const out = [];
+  for (const s of stops) {
+    const name = String(s.stop_name || "").toLowerCase();
+    if (String(s.stop_id) === q || String(s.stop_code || "") === q || words.every((w) => name.includes(w))) out.push(s);
+    if (out.length >= max) break;
+  }
+  return out;
 }

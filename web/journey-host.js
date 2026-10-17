@@ -56,6 +56,9 @@ export class JourneyHost {
     return this.#send("rt-lost");
   }
   command(name, value) { return this.#send(name, value); }
+  passengerType(type) {
+    return this.#send("pax", String(type === "supergold" ? 2 : type === "standard" ? 1 : 0));
+  }
   destination(k, { lat, lon }) {
     const [x, y] = this.proj.toXY(lat, lon);
     return this.#send("dest-at", `${k} ${x} ${y}`);

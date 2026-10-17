@@ -12,7 +12,7 @@ import { SCENARIOS, scenario } from "./sim/scenarios.js";
 import { RealtimePoller } from "./transit/metlink-realtime.js";
 import { RealtimeKeys, statusText, stopCheckRows } from "./realtime-settings.js";
 import { startupMode, passengerUrl, locationProblem } from "./startup.js";
-import { MyPlaces, catalogue, passengerProfile, PLACE_SLOT } from "./places.js";
+import { MyPlaces, catalogue, passengerProfile, PLACE_SLOT, FareSetting, setupStep, findStops, parseLocation } from "./places.js";
 
 const $ = (s) => document.querySelector(s);
 const readText = (p) => fetch(p).then((r) => { if (!r.ok) throw new Error(`${p}: HTTP ${r.status}`); return r.text(); });
@@ -29,6 +29,8 @@ const places = MODE === "passenger" ? new MyPlaces() : null;
 let cat = null;          // the landmark catalogue (config/landmarks.json)
 let chosenPlace = null;  // the one of My Places in Glon's slot 1, once chosen
 let lastFix = null;      // the latest GPS fix, in memory only (Use my current location)
+let lastGpsError = null; // why there is no fix, if the browser said (setup explains it plainly)
+const fare = MODE === "passenger" ? new FareSetting() : null;
 
 const namesFor = (host, profile) => ({
   rtSource: session && session.poller ? "metlink" : "demo",
@@ -64,9 +66,11 @@ async function start(mode) {
     gtfsIndex = GtfsIndex.fromTexts(Object.fromEntries(GTFS_FILES.map((f, i) => [f, texts[i]])));
   }
   const transit = new GtfsTransitProvider({ index: gtfsIndex, realtime: mode === "live" ? { updates: [] } : realtime });
-  const { machine, proj } = await bootJourneyApp({ readText, readBytes, profile, region });
+  const farePolicy = mode === "live" ? "config/fare-policy.metlink.glon" : "config/fare-policy.demo.glon";
+  const { machine, proj } = await bootJourneyApp({ readText, readBytes, profile, region, farePolicy });
   let host = null;
   host = new JourneyHost(machine, proj, { effects, transit, onRender: (st) => paint(st, namesFor(host, profile)) });
+  if (mode === "live") host.passengerType(fare.type);
   paint(host.state, namesFor(host, profile));
 
   if (mode === "live") {
@@ -76,7 +80,7 @@ async function start(mode) {
     const poller = new RealtimePoller({ source: keys.client, host, onStatus: showRt });
     const where = gps.available ? "Using your location · timetable" + (keys.client ? " · Metlink realtime" : "") : locationProblem(null);
     let located = false;
-    gps.onError = (e) => { if (!located || e.code !== 3) $("#status").textContent = locationProblem(e); };
+    gps.onError = (e) => { lastGpsError = e; if (!located || e.code !== 3) $("#status").textContent = locationProblem(e); };
     clock.start((t) => {
       host.clock(t); transit.tick(t.secs);
       const p = poller.tick(t.secs);
@@ -87,12 +91,14 @@ async function start(mode) {
     gps.start((fix) => {
       if (!located) { located = true; $("#status").textContent = where; }
       lastFix = { lat: fix.lat, lon: fix.lon, accuracy: fix.accuracy };
+      lastGpsError = null;
       host.position(fix);
     });
     $("#status").textContent = gps.available ? "Finding your location…" : where;
     session = { host, poller, profile, stop() { gps.stop(); clock.stop(); } };
     showRt();
     showMode();
+    goNext();                 // Home setup, fare setup, or Where do you want to go?
     return;
   }
 
@@ -146,7 +152,7 @@ function onKeys(view) {
   $("#rt-entry").hidden = !entry;
   $("#rt-cancel").hidden = view.panel !== "replace";
   $("#rt-manage").hidden = !(view.panel === "connected" || view.panel === "unverified");
-  if (entry) $("#rt-panel").open = true;
+  if (entry && MODE === "demo") $("#rt-panel").open = true;
   if (session && session.poller && session.poller.source !== keys.client) {
     session.poller.source = keys.client;
     session.poller.lastGen = null;
@@ -195,6 +201,7 @@ document.addEventListener("click", (e) => {
   effects.prime();
   const act = b.dataset.act;
   if (act === "add-place") { openPlaces(); return; }
+  if (act === "settings") { openSettings(); return; }
   if (act === "place") {
     const p = places && places.get(b.dataset.value);
     if (!p) return;
@@ -211,13 +218,87 @@ document.addEventListener("click", (e) => {
 const el = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); n.append(...kids); return n; };
 function repaintView() { if (session) paint(session.host.state, namesFor(session.host, session.profile)); }
 function placeMsg(t) { $("#place-msg").textContent = t || ""; }
+const SCREENS = ["view", "setup-home", "setup-fare", "places", "settings"];
+function show(id) {
+  for (const s of SCREENS) $("#" + s).hidden = s !== id;
+  if (id === "view") repaintView();
+}
+function goNext() {
+  if (!places) return;
+  const step = setupStep(places, fare);
+  if (step === "home") openHomeSetup(false);
+  else if (step === "fare") openFareSetup(false);
+  else show("view");
+}
+let fromSettings = false;    // a setup screen opened from Settings returns there
+function afterSetup() { if (fromSettings && setupStep(places, fare) === "ready") openSettings(); else goNext(); }
+
+function homeMsg(t) { $("#home-msg").textContent = t || ""; }
+function openHomeSetup(settings) {
+  fromSettings = settings;
+  $("#setup-home-title").textContent = places.home() ? "Change Home" : "Let's set up Home";
+  $("#home-cancel").hidden = !settings;
+  $("#home-pick").hidden = true; $("#home-stop").value = ""; $("#home-stops").replaceChildren(); $("#home-coords").value = "";
+  homeMsg("");
+  show("setup-home");
+}
+function setHome(point) { places.setHome(point); chosenPlace = null; afterSetup(); }
+$("#home-here").onclick = () => {
+  if (lastFix) { setHome(lastFix); return; }
+  homeMsg(lastGpsError && lastGpsError.code === 1
+    ? "This device is not sharing its location with the app. You can allow location for this site in your browser's settings, or choose another location."
+    : "We can't see where you are yet. Wait a moment and try again, or choose another location.");
+  $("#home-other").focus();
+};
+$("#home-other").onclick = () => { $("#home-pick").hidden = false; homeMsg(""); $("#home-stop").focus(); };
+$("#home-stop").oninput = () => {
+  if (!gtfsIndex) { homeMsg("Still loading the bus stops…"); return; }
+  $("#home-stops").replaceChildren(...findStops(gtfsIndex.stops.values(), $("#home-stop").value).map((st) =>
+    el("li", {}, el("span", { textContent: `${st.stop_name} (stop ${st.stop_id})` }),
+      el("button", { type: "button", textContent: "Home is near here", onclick: () => setHome({ lat: st.lat, lon: st.lon }) }))));
+};
+$("#home-coords-use").onclick = () => {
+  const p = parseLocation($("#home-coords").value);
+  if (p) setHome(p);
+  else homeMsg("That doesn't look like a location. Copy it from a map app, for example -41.2950, 174.7700.");
+};
+$("#home-cancel").onclick = () => openSettings();
+
+function openFareSetup(settings) {
+  fromSettings = settings;
+  $("#fare-cancel").hidden = !settings;
+  show("setup-fare");
+}
+for (const b of document.querySelectorAll("[data-fare]")) {
+  b.onclick = () => {
+    fare.set(b.dataset.fare);
+    if (session) session.host.passengerType(fare.type);   // only the category; Glon judges the fare
+    afterSetup();
+  };
+}
+$("#fare-cancel").onclick = () => openSettings();
+
+if (MODE === "passenger") { $("#settings-advanced").append($("#rt-panel")); $("#rt-panel").open = false; }
+
+const FARE_WORDS = { supergold: "SuperGold card", standard: "Standard fare" };
+function openSettings() {
+  if (!places) return;
+  fromSettings = false;
+  $("#set-fare-now").textContent = fare.type ? FARE_WORDS[fare.type] : "Not chosen yet";
+  $("#set-home").textContent = places.home() ? "Change Home" : "Set up Home";
+  show("settings");
+}
+$("#set-home").onclick = () => openHomeSetup(true);
+$("#set-fare").onclick = () => openFareSetup(true);
+$("#settings-close").onclick = () => goNext();
+
 function openPlaces() {
   if (!places) return;
-  $("#places").hidden = false; $("#view").hidden = true;
   $("#place-here-form").hidden = true; $("#place-search").value = ""; placeMsg("");
   renderPlaces();
+  show("places");
 }
-function closePlaces() { $("#places").hidden = true; $("#view").hidden = false; repaintView(); }
+function closePlaces() { goNext(); }
 function renderPlaces() {
   const q = $("#place-search").value;
   const have = new Set(places.places.map((p) => p.landmark).filter(Boolean));
@@ -226,7 +307,6 @@ function renderPlaces() {
     have.has(l.id) ? el("span", { className: "sched", textContent: "Added" })
       : el("button", { type: "button", textContent: "Add", onclick: () => { places.addLandmark(l); placeMsg(`Added ${l.name}.`); renderPlaces(); repaintView(); } }))));
   $("#place-list").replaceChildren(
-    el("li", {}, el("span", { textContent: cat.builtIn.name }), el("span", { className: "sched", textContent: "Built in" })),
     ...places.places.map((p) => {
       const name = el("input", { value: p.name, maxLength: 60, ariaLabel: "Place name" });
       return el("li", {}, name,

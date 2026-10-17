@@ -57,7 +57,7 @@ function leaveBox(v) {
 }
 
 function fareLine(v) {
-  const word = { free: "Free", paid: "Paid", concession: "Concession", unknown: "Unknown" }[v.fare] || "Unknown";
+  const word = { free: "Free", paid: "Paid", concession: "Concession", unknown: "Not set" }[v.fare] || "Not set";
   return `<div class="fare">Fare: <b>${word}</b>${v.fareReason ? " · " + esc(v.fareReason) : ""}</div>`;
 }
 
@@ -134,10 +134,13 @@ export function renderView(v, names) {
     a += acts.map((x) => `<button data-act="${x}" class="act-${x}">${label(x)}</button>`).join("");
   }
   if (v.state === "IDLE" && names.places) {
-    a = `<h1>Where to?</h1><div class="dests">` +
+    const mine = (p) => `<button class="dest mine${p.home ? " home" : ""}" data-act="place" data-value="${esc(p.id)}">${esc(p.name)}</button>`;
+    a = `<h1>Where do you want to go?</h1><div class="dests">` +
+      names.places.filter((p) => p.home).map(mine).join("") +
       `<button class="dest" data-act="choose" data-value="0">${esc(names.dests[0])}</button>` +
-      names.places.map((p) => `<button class="dest mine" data-act="place" data-value="${esc(p.id)}">${esc(p.name)}</button>`).join("") +
-      `<button class="dest add" data-act="add-place">+ Add a place</button></div>`;
+      names.places.filter((p) => !p.home).map(mine).join("") +
+      `<button class="dest add" data-act="add-place">+ Add a place</button></div>` +
+      `<button class="settings-link" data-act="settings">Settings</button>`;
   } else if (v.state === "IDLE") {
     a = `<h1>Where to?</h1><div class="dests">` +
       names.dests.map((d, k) => `<button class="dest" data-act="choose" data-value="${k}">${esc(d)}</button>`).join("") + `</div>`;

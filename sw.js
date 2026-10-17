@@ -1,4 +1,4 @@
-const VERSION = "dd-u1-sw2";
+const VERSION = "dd-u1-sw3";
 const OWN = (k) => k.startsWith("dd-");
 const SHELL = [
   "./", "index.html", "manifest.webmanifest",
@@ -10,7 +10,7 @@ const SHELL = [
   "web/sim/journey-sim.js", "web/sim/scenarios.js",
   "vendor/glon/glon-kaka.wasm", "vendor/glon/prelude.glon", "vendor/glon/strings.glon", "vendor/glon/kaka-lib-subset.glon",
   "glon/dd-support.glon", "glon/route-match.glon", "glon/fare.glon", "glon/journey.glon", "glon/candidates.glon", "glon/view.glon", "glon/app.glon",
-  "config/profile.json", "config/region.json", "config/journey-config.glon", "config/fare-policy.glon",
+  "config/profile.json", "config/region.json", "config/journey-config.glon", "config/fare-policy.metlink.glon", "config/fare-policy.demo.glon",
   "fixtures/route21/realtime.json",
   ...["feed_info", "routes", "trips", "stop_times", "stops", "shapes", "calendar", "calendar_dates"]
     .map((f) => "fixtures/gtfs-wellington/" + f + ".txt"),
