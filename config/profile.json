@@ -3,7 +3,9 @@
   "favourites": [
     { "id": "te-papa", "name": "Te Papa (demo)", "lat": -41.29060, "lon": 174.78210 },
     { "id": "town", "name": "Cuba Mall (demo)", "lat": -41.29130, "lon": 174.77545 },
-    { "id": "karori-mall", "name": "Karori Mall (demo)", "lat": -41.28555, "lon": 174.73700 }
+    { "id": "karori-mall", "name": "Karori Mall (demo)", "lat": -41.28555, "lon": 174.73700 },
+    { "id": "lambton-quay", "name": "Lambton Quay (demo)", "lat": -41.28420, "lon": 174.77505 },
+    { "id": "johnsonville", "name": "Johnsonville (demo)", "lat": -41.22330, "lon": 174.80570 }
   ],
   "concession": null,
   "preferences": {

@@ -1,107 +1,49 @@
 [
-PCH: 170
-pt: func [i k] [ block-at block-at rt-pts / i PCH + * 3 mod i PCH k ]
-sv: func [i k] [ block-at st-row + * 5 i k ]
-rt-n: 0
-rt-pts: none
-st-n: 0
-st-row: none
-rt-name: ""
-rt-head: ""
-pat-tab: new-block 56
-pat-k: 0
-pt-of: func [s f] [ block-at pat-tab + * 7 s f ]
-pat-put: func [no name head n pts sn stops] [
-    either < pat-k 8 [
-        b: * 7 pat-k
-        block-set! pat-tab b no
-        block-set! pat-tab + b 1 pts
-        block-set! pat-tab + b 2 n
-        block-set! pat-tab + b 3 stops
-        block-set! pat-tab + b 4 sn
-        block-set! pat-tab + b 5 name
-        block-set! pat-tab + b 6 head
-        pat-k: + pat-k 1
-    ] [ none ]
-]
-pat-find: func [no s] [ either < s pat-k [ either = pt-of s 0 no [ s ] [ pat-find no + s 1 ] ] [ -1 ] ]
-pat-use: func [s] [
-    either < s 0 [ none ] [
-        rt-pts: pt-of s 1  rt-n: pt-of s 2
-        st-row: pt-of s 3  st-n: pt-of s 4
-        rt-name: pt-of s 5  rt-head: pt-of s 6
-    ]
-]
-tt-st: none
-tt-sn: 0
-tt-begin: func [no p] [
-    s: pat-find p 0
-    either < s 0 [ tt-st: none  tt-sn: 0 ] [ tt-st: pt-of s 3  tt-sn: pt-of s 4 ]
-]
-tt-put: func [k i n] [
-    either < i n [
-        either < k tt-sn [ block-set! tt-st + * 5 k 1 ev i  tt-put + k 1 + i 1 n ] [ none ]
-    ] [ none ]
-]
-seq-index: func [q] [ si-go q 0 - st-n 1 ]
-si-go: func [q a b] [
-    either >= a b [ either = sv a 4 q [ a ] [ -1 ] ] [
-        m: / + a b 2
-        either < sv m 4 q [ si-go q + m 1 b ] [ si-go q a m ]
-    ]
-]
 clampv: func [v] [ either > v 8000 [ 8000 ] [ either < v -8000 [ -8000 ] [ v ] ] ]
 sq: func [v] [ * v v ]
 d2: func [ax ay bx by] [ + sq clampv - ax bx sq clampv - ay by ]
 dist: func [ax ay bx by] [ isq d2 ax ay bx by ]
-pj-s: 0
-pj-l2: 0
-seg-proj: func [i px py] [
-    ch: block-at rt-pts / i PCH
-    o: * 3 mod i PCH
-    ax: block-at ch o  ay: block-at ch + o 1  d0: block-at ch + o 2
-    ux: - pt + i 1 0 ax  uy: - pt + i 1 1 ay
-    len: - pt + i 1 2 d0
-    either < len 1 [ len: 1 ] [ none ]
-    tg: / + * clampv - px ax ux * clampv - py ay uy len
-    either < tg 0 [ tg: 0 ] [ either > tg len [ tg: len ] [ none ] ]
-    pj-s: + d0 tg
-    pj-l2: d2 px py + ax / * ux tg len + ay / * uy tg len
+jt-n: 0
+jw: new-block 35
+jw-clear: func [i] [ either < i 7 [ block-set! jw * 5 i -1  jw-clear + i 1 ] [ none ] ]
+jw-slot: func [k i] [ either < i 7 [ either = block-at jw * 5 i k [ i ] [ jw-slot k + i 1 ] ] [ -1 ] ]
+jw-base: func [] [ either = j-st 'ON_BUS [ - j-next 1 ] [ either = j-st 'WALKING_FINAL [ - j-next 1 ] [ j-board ] ] ]
+jw-want: func [k] [
+    either = j-g 1 [ 1 ] [ either = k j-board [ 1 ] [ either = k j-alight [ 1 ] [
+        wb: jw-base
+        either < k wb [ 0 ] [ < k + wb 5 ]
+    ] ] ]
 ]
-bs-floor: 0
-bs-sc: 0
-bs-score: func [i px py] [
-    seg-proj i px py
-    l2: either > pj-l2 60000000 [ 60000000 ] [ pj-l2 ]
-    either < pj-s bs-floor [ + l2 70000000 ] [ l2 ]
+jw-free: func [i] [
+    either < i 7 [
+        wk: block-at jw * 5 i
+        either < wk 0 [ i ] [ either jw-want wk [ jw-free + i 1 ] [ i ] ]
+    ] [ -1 ]
 ]
-best-seg: func [a b px py] [
-    either >= a b [ bs-sc: bs-score a px py  a ] [
-        m: / + a b 2
-        i: best-seg a m px py
-        si: bs-sc
-        j: best-seg + m 1 b px py
-        either < bs-sc si [ j ] [ bs-sc: si  i ]
+jw-put: func [k s t x y] [
+    ws: jw-slot k 0
+    either < ws 0 [ ws: jw-free 0 ] [ none ]
+    either < ws 0 [ none ] [
+        wo: * 5 ws
+        block-set! jw wo k
+        block-set! jw + wo 1 s
+        block-set! jw + wo 2 t
+        block-set! jw + wo 3 x
+        block-set! jw + wo 4 y
     ]
 ]
-seg-find: func [a b s] [
-    either >= a b [ a ] [
-        m: / + + a b 1 2
-        either <= pt m 2 s [ seg-find m b s ] [ seg-find a - m 1 s ]
-    ]
+jw-has: func [k] [ >= jw-slot k 0 0 ]
+sv: func [k f] [
+    ws: jw-slot k 0
+    either < ws 0 [ 0 ] [ block-at jw + + * 5 ws f 1 ]
 ]
+f-ms: -1
+f-ml: -1
 mt-s: 0
 mt-lat: 0
-match: func [px py lo hi floor] [
-    top: - rt-n 2
-    bs-floor: floor
-    i: best-seg seg-find 0 top lo seg-find 0 top hi px py
-    seg-proj i px py
-    mt-s: pj-s
-    mt-lat: isq pj-l2
-]
+match: func [] [ mt-s: f-ms  mt-lat: f-ml ]
 off-at: func [k s] [
-    either >= k - st-n 1 [ sv - st-n 1 1 ] [
+    either >= k - jt-n 1 [ sv - jt-n 1 1 ] [
         s0: sv k 0  s1: sv + k 1 0
         o0: sv k 1  o1: sv + k 1 1
         either <= s s0 [ o0 ] [
@@ -109,4 +51,5 @@ off-at: func [k s] [
         ]
     ]
 ]
+jw-clear 0
 ]

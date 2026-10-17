@@ -133,7 +133,12 @@ export function renderView(v, names) {
     const label = (x) => (x === "accept" && v.walkOnly ? "Start walking" : ACT_LABEL[x]);
     a += acts.map((x) => `<button data-act="${x}" class="act-${x}">${label(x)}</button>`).join("");
   }
-  if (v.state === "IDLE") {
+  if (v.state === "IDLE" && names.places) {
+    a = `<h1>Where to?</h1><div class="dests">` +
+      `<button class="dest" data-act="choose" data-value="0">${esc(names.dests[0])}</button>` +
+      names.places.map((p) => `<button class="dest mine" data-act="place" data-value="${esc(p.id)}">${esc(p.name)}</button>`).join("") +
+      `<button class="dest add" data-act="add-place">+ Add a place</button></div>`;
+  } else if (v.state === "IDLE") {
     a = `<h1>Where to?</h1><div class="dests">` +
       names.dests.map((d, k) => `<button class="dest" data-act="choose" data-value="${k}">${esc(d)}</button>`).join("") + `</div>`;
   }

@@ -3,7 +3,7 @@ events: [
     ['boot [ render ]]
     ['fix [
         ev-parse current-value
-        f-x: ev 0  f-y: ev 1  f-acc: ev 2  f-have: 1
+        f-x: ev 0  f-y: ev 1  f-acc: ev 2  f-ms: ev 3  f-ml: ev 4  f-have: 1
         refresh-geom
         fix-update
         render ]]
@@ -14,6 +14,9 @@ events: [
         render ]]
     ['rt-lost [ rt-ok: 0  cq-rt-off cq-cl 6 5 0 - cn 3 1  cq-rt-off cq-tr 8 6 0 - cn 2 1  time-update  render ]]
     ['choose [ ev-parse current-value  choose ev 0  render ]]
+    ['dest-at [ ev-parse current-value  either < ev 0 dest-n [
+        block-set! dest-row * 3 ev 0 1  block-set! dest-row + * 3 ev 0 1 ev 1  block-set! dest-row + * 3 ev 0 2 ev 2
+    ] [ none ]  render ]]
     ['accept [ accept  render ]]
     ['board [ board-cmd  render ]]
     ['alight [ alight-cmd  render ]]
@@ -31,9 +34,8 @@ events: [
     ['cq-rt [ ev-parse current-value  cq-rt ev 0 ev 1 ev 2  render ]]
     ['cq-rt-end [ ev-parse current-value  rt-ok: 1  rt-t: ev 0  cs-resel  time-update  render ]]
     ['cq-score [ cs-score  render ]]
-    ['trip-begin [ ev-parse current-value  tt-begin ev 0 ev 1  render ]]
-    ['trip-times [ ev-parse current-value  tt-put ev 0 1 ev-k  render ]]
-    ['trip-ready [ ev-parse current-value  on-trip-ready ev 0  render ]]
+    ['jw [ ev-parse current-value  jw-put ev 0 ev 1 ev 2 ev 3 ev 4  render ]]
+    ['jt [ ev-parse current-value  on-trip-ready ev 0 ev 1 ev 2 ev 3  render ]]
 ]
 do-event: [
     event-row: select events current-event

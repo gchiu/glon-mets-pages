@@ -11,7 +11,7 @@ const ints = (s) => s.trim().split(/\s+/).filter(Boolean).map(Number);
 
 export function readState(script) {
   const st = { acts: [], option: null, bus: null, destWalk: null, strip: null, fareReason: null, route: null, head: null,
-    candidate: null, request: null, need: null, realtime: null };
+    candidate: null, request: null, activate: null, window: null, measure: null, realtime: null };
   for (const line of script.split("\n")) {
     if (!line) continue;
     const op = line[0], rest = line.slice(1);
@@ -41,15 +41,19 @@ export function readState(script) {
     } else if (op === "Q") {
       const [gen, radiusO, radiusD, horizon, ox, oy, dx, dy] = ints(rest);
       st.request = { gen, radiusO, radiusD, horizon, ox, oy, dx, dy };
-    } else if (op === "G") {
-      const [pat, trip] = ints(rest);
-      st.need = { pat, trip };
+    } else if (op === "A") {
+      const [trip, bseq, aseq] = ints(rest);
+      st.activate = { trip, bseq, aseq };
+    } else if (op === "W") {
+      const [base, board, target] = ints(rest);
+      st.window = { base, board, target };
+    } else if (op === "M") {
+      const v = ints(rest);
+      st.measure = v[0] === 0 ? { kind: "pre", lo: v[1], hi: v[2], floor: v[3] }
+        : { kind: "bus", lo: v[1], floor: v[2], base: v[3], rate: v[4], t0: v[5] };
     } else if (op === "P") {
       const [gen] = ints(rest);
       st.realtime = { gen };
-    } else if (op === "R") {
-      const [name, head] = rest.trim().split("|");
-      st.route = name; st.head = head;
     }
   }
   if (st.bus) { st.next = st.bus.next; st.togo = st.bus.togo; st.target = st.bus.alight; st.progress = st.bus.progress; }

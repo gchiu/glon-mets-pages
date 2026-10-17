@@ -1,0 +1,20 @@
+{
+  "_comment": "U1 built-in public landmark catalogue: lookup candidates for 'Add a place'; only the entry marked default appears on Where to? by itself. Each point is a pedestrian arrival point (an entrance where one is mapped), verified 17 October 2026 against OpenStreetMap (ODbL) and official sources; the source of every point is recorded with the app's source code. Public places only: a passenger's own places live only in their browser.",
+  "version": 2,
+  "landmarks": [
+    { "id": "central-library", "name": "Wellington Central Library", "lat": -41.288113, "lon": 174.776402, "default": true },
+    { "id": "te-papa", "name": "Te Papa", "lat": -41.290439, "lon": 174.781389 },
+    { "id": "railway-station", "name": "Wellington Railway Station", "lat": -41.278882, "lon": 174.779817 },
+    { "id": "parliament", "name": "Parliament (Beehive visitor centre)", "lat": -41.278437, "lon": 174.776626 },
+    { "id": "cable-car", "name": "Cable Car, Lambton Quay station", "lat": -41.284257, "lon": 174.774796 },
+    { "id": "cuba-mall", "name": "Bucket Fountain, Cuba Mall", "lat": -41.292228, "lon": 174.776324 },
+    { "id": "st-james", "name": "St James Theatre, Courtenay Place", "lat": -41.293130, "lon": 174.779850 },
+    { "id": "botanic-garden", "name": "Wellington Botanic Garden (Cable Car, Kelburn)", "lat": -41.285379, "lon": 174.767595 },
+    { "id": "vuw-kelburn", "name": "Victoria University, Kelburn (The Hub)", "lat": -41.289125, "lon": 174.768616 },
+    { "id": "hospital", "name": "Wellington Regional Hospital", "lat": -41.308806, "lon": 174.778966 },
+    { "id": "zoo", "name": "Wellington Zoo", "lat": -41.319551, "lon": 174.784545 },
+    { "id": "stadium", "name": "Hnry Stadium (Wellington Regional Stadium)", "lat": -41.274825, "lon": 174.784776 },
+    { "id": "karori-mall", "name": "Karori Mall", "lat": -41.284503, "lon": 174.737990 },
+    { "id": "johnsonville-mall", "name": "Johnsonville Shopping Centre", "lat": -41.223329, "lon": 174.805868 }
+  ]
+}

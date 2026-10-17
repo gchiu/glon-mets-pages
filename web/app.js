@@ -11,22 +11,30 @@ import { JourneySimulation } from "./sim/journey-sim.js";
 import { SCENARIOS, scenario } from "./sim/scenarios.js";
 import { RealtimePoller } from "./transit/metlink-realtime.js";
 import { RealtimeKeys, statusText, stopCheckRows } from "./realtime-settings.js";
+import { startupMode, passengerUrl, locationProblem } from "./startup.js";
+import { MyPlaces, catalogue, passengerProfile, PLACE_SLOT } from "./places.js";
 
 const $ = (s) => document.querySelector(s);
 const readText = (p) => fetch(p).then((r) => { if (!r.ok) throw new Error(`${p}: HTTP ${r.status}`); return r.text(); });
 const readBytes = (p) => fetch(p).then((r) => { if (!r.ok) throw new Error(`${p}: HTTP ${r.status}`); return r.arrayBuffer(); });
 const readJson = (p) => readText(p).then(JSON.parse);
 
+const MODE = startupMode(location.search);
 const effects = new PlatformEffects();
 let session = null;     // { host, poller, stop() }
 const keys = new RealtimeKeys({ onChange: onKeys });
 const realtimeReady = keys.init();
 let gtfsIndex = null;   // built once per page from the Route 21 GTFS subset
+const places = MODE === "passenger" ? new MyPlaces() : null;
+let cat = null;          // the landmark catalogue (config/landmarks.json)
+let chosenPlace = null;  // the one of My Places in Glon's slot 1, once chosen
+let lastFix = null;      // the latest GPS fix, in memory only (Use my current location)
 
 const namesFor = (host, profile) => ({
   rtSource: session && session.poller ? "metlink" : "demo",
   stops: host && host.activePattern ? host.activePattern.stops.map((s) => s.name) : [],
-  dests: profile.favourites.map((f) => f.name),
+  dests: places ? [profile.favourites[0].name, chosenPlace ? chosenPlace.name : "Your place"] : profile.favourites.map((f) => f.name),
+  ...(places ? { places: places.places } : {}),
 });
 
 function paint(state, names) {
@@ -41,11 +49,18 @@ async function start(mode) {
   if (session) session.stop();
   session = null;
   $("#vb").innerHTML = "<p>Loading Glon…</p>"; $("#va").innerHTML = "";
-  const [realtime, profile, region] = await Promise.all([
+  const [realtime, loaded, region] = await Promise.all([
     readJson("fixtures/route21/realtime.json"), readJson("config/profile.json"), readJson("config/region.json"),
   ]);
+  let profile = loaded;
+  if (mode === "live") {
+    cat = catalogue(await readJson("config/landmarks.json"));
+    if (!cat.builtIn) throw new Error("config/landmarks.json has no default destination");
+    profile = passengerProfile(loaded, cat.builtIn);
+    chosenPlace = null;
+  }
   if (!gtfsIndex) {
-    const texts = await Promise.all(GTFS_FILES.map((f) => readText("fixtures/gtfs-route21/" + f)));
+    const texts = await Promise.all(GTFS_FILES.map((f) => readText("fixtures/gtfs-wellington/" + f)));
     gtfsIndex = GtfsIndex.fromTexts(Object.fromEntries(GTFS_FILES.map((f, i) => [f, texts[i]])));
   }
   const transit = new GtfsTransitProvider({ index: gtfsIndex, realtime: mode === "live" ? { updates: [] } : realtime });
@@ -59,7 +74,9 @@ async function start(mode) {
     const clock = new SystemClock(region.timezone);
     await realtimeReady;
     const poller = new RealtimePoller({ source: keys.client, host, onStatus: showRt });
-    gps.onError = (e) => { $("#status").textContent = "GPS: " + (e.message || e.code); };
+    const where = gps.available ? "Using your location · timetable" + (keys.client ? " · Metlink realtime" : "") : locationProblem(null);
+    let located = false;
+    gps.onError = (e) => { if (!located || e.code !== 3) $("#status").textContent = locationProblem(e); };
     clock.start((t) => {
       host.clock(t); transit.tick(t.secs);
       const p = poller.tick(t.secs);
@@ -67,10 +84,15 @@ async function start(mode) {
       showRt();
     });
     transit.start(host);
-    gps.start((fix) => host.position(fix));
-    $("#status").textContent = gps.available ? "Live GPS · GTFS timetable" + (keys.client ? " · Metlink realtime" : " · no realtime key") : "Geolocation unavailable";
-    session = { host, poller, stop() { gps.stop(); clock.stop(); } };
+    gps.start((fix) => {
+      if (!located) { located = true; $("#status").textContent = where; }
+      lastFix = { lat: fix.lat, lon: fix.lon, accuracy: fix.accuracy };
+      host.position(fix);
+    });
+    $("#status").textContent = gps.available ? "Finding your location…" : where;
+    session = { host, poller, profile, stop() { gps.stop(); clock.stop(); } };
     showRt();
+    showMode();
     return;
   }
 
@@ -96,17 +118,28 @@ async function start(mode) {
   };
   setTimeout(frame, 50);
   $("#droprt").onclick = () => transit.dropRealtime();
-  session = { host, poller: null, stop() { running = false; } };
+  session = { host, poller: null, profile, title: sc.title, stop() { running = false; } };
   showRt();
+  showMode();
 }
+
+function showMode() {
+  const sim = session && !session.poller;
+  $("#mode").hidden = !sim;
+  if (!sim) return;
+  const demo = (session.title || "").replace(/^Demo:\s*/, "");
+  $("#mode-text").textContent = `Demo journey (${demo}): simulated, not your location or real bus times.`;
+}
+$("#leave-demo").onclick = () => location.assign(passengerUrl(location.href));
 
 function showRt() {
   const s = session, live = s && s.poller;
   let t = statusText(live ? live.status : null, !!keys.client, s && s.host.lastClock ? s.host.lastClock.secs : 0);
-  if (keys.client && !live) t = "The simulation uses demo data; Use real GPS for live times";
+  if (keys.client && !live) t = "The demo uses demonstration data; leave the demo for live times";
   if ($("#rt-status").textContent !== t) $("#rt-status").textContent = t;
 }
 function onKeys(view) {
+  showMode();
   const entry = view.panel === "setup" || view.panel === "rejected" || view.panel === "replace";
   $("#rt-msg").textContent = view.message;
   $("#rt-msg").className = view.panel === "rejected" ? "note" : "";
@@ -161,13 +194,65 @@ document.addEventListener("click", (e) => {
   if (!b || !session) return;
   effects.prime();
   const act = b.dataset.act;
+  if (act === "add-place") { openPlaces(); return; }
+  if (act === "place") {
+    const p = places && places.get(b.dataset.value);
+    if (!p) return;
+    chosenPlace = p;
+    session.host.destination(PLACE_SLOT, p);
+    session.host.command("choose", String(PLACE_SLOT));
+    return;
+  }
+  if (act === "choose") chosenPlace = null;
   if (b.dataset.value !== undefined) session.host.command(act, b.dataset.value);
   else session.host.command(act);
 });
 
-for (const [k, s] of Object.entries(SCENARIOS)) $("#scenario").add(new Option(s.title, k));
+const el = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); n.append(...kids); return n; };
+function repaintView() { if (session) paint(session.host.state, namesFor(session.host, session.profile)); }
+function placeMsg(t) { $("#place-msg").textContent = t || ""; }
+function openPlaces() {
+  if (!places) return;
+  $("#places").hidden = false; $("#view").hidden = true;
+  $("#place-here-form").hidden = true; $("#place-search").value = ""; placeMsg("");
+  renderPlaces();
+}
+function closePlaces() { $("#places").hidden = true; $("#view").hidden = false; repaintView(); }
+function renderPlaces() {
+  const q = $("#place-search").value;
+  const have = new Set(places.places.map((p) => p.landmark).filter(Boolean));
+  $("#place-results").replaceChildren(...cat.search(q).map((l) => el("li", {},
+    el("span", { textContent: l.name }),
+    have.has(l.id) ? el("span", { className: "sched", textContent: "Added" })
+      : el("button", { type: "button", textContent: "Add", onclick: () => { places.addLandmark(l); placeMsg(`Added ${l.name}.`); renderPlaces(); repaintView(); } }))));
+  $("#place-list").replaceChildren(
+    el("li", {}, el("span", { textContent: cat.builtIn.name }), el("span", { className: "sched", textContent: "Built in" })),
+    ...places.places.map((p) => {
+      const name = el("input", { value: p.name, maxLength: 60, ariaLabel: "Place name" });
+      return el("li", {}, name,
+        el("button", { type: "button", textContent: "Rename", onclick: () => { try { places.rename(p.id, name.value); placeMsg("Renamed."); } catch (err) { placeMsg(err.message); } renderPlaces(); repaintView(); } }),
+        el("button", { type: "button", textContent: "Delete", onclick: () => { places.remove(p.id); if (chosenPlace && chosenPlace.id === p.id) chosenPlace = null; placeMsg("Deleted."); renderPlaces(); repaintView(); } }));
+    }));
+}
+$("#place-here").onclick = () => {
+  if (!lastFix) { placeMsg("Your location is not known yet. Allow location for this site, then try again."); return; }
+  $("#place-here-form").hidden = false; $("#place-name").value = ""; $("#place-name").focus(); placeMsg("");
+};
+$("#place-save").onclick = () => {
+  try { const p = places.addHere($("#place-name").value, lastFix); placeMsg(`Saved ${p.name}.`); $("#place-here-form").hidden = true; }
+  catch (err) { placeMsg(err.message); }
+  renderPlaces(); repaintView();
+};
+$("#place-name").onkeydown = (e) => { if (e.key === "Enter") $("#place-save").click(); };
+$("#place-search").oninput = () => renderPlaces();
+$("#places-close").onclick = () => closePlaces();
+
+const scenariosReady = MODE !== "demo" ? null : readJson("config/profile.json").then((p) => {
+  const ids = new Set(p.favourites.map((f) => f.id));
+  for (const [k, s] of Object.entries(SCENARIOS)) if (ids.has(s.destId)) $("#scenario").add(new Option(s.title, k));
+  $("#sim-panel").hidden = false;
+});
 $("#start-sim").onclick = () => { effects.prime(); start("sim").catch(showError); };
-$("#start-live").onclick = () => { effects.prime(); start("live").catch(showError); };
 function showError(e) { $("#vb").innerHTML = `<p class="note">${String(e.message || e)}</p>`; console.error(e); }
 
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
@@ -180,4 +265,5 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
     .then((reg) => reg.update())
     .catch(() => { /* offline cache is optional */ });
 }
-start("sim").catch(showError);
+if (MODE === "demo") scenariosReady.then(() => start("sim")).catch(showError);
+else start("live").catch(showError);

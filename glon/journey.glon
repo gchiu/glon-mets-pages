@@ -22,6 +22,12 @@ m-t: 0
 a-s: 0
 a-t: -1000
 v-cms: 0
+sp-fast: 0
+sp-ride: 0
+sp-walk: 0
+al-d: 0
+due-t: -100000
+w-t: -100000
 j-next: 0
 press-t: -1
 lat-n: 0
@@ -34,7 +40,6 @@ j-q: 0
 j-qgen: 0
 j-rad: 0
 j-trip: -1
-j-pat: -1
 j-bseq: -1
 j-aseq: -1
 j-g: 0
@@ -104,11 +109,11 @@ on-candidates: func [] [
 cs-take: func [bc ba] [
     t: cl bc 0
     j-trip: tr t 4
-    j-pat: tr t 0
     j-bseq: cl bc 2
     j-aseq: ar ba 1
     j-g: 1
     block-set! cq-best 3 bc
+    jw-clear 0
 ]
 cs-resel: func [] [
     k: block-at cq-best 3
@@ -132,14 +137,14 @@ cs-resel: func [] [
         ] [ none ]
     ] [ none ]
 ]
-on-trip-ready: func [no] [
+on-trip-ready: func [no bk ak n] [
     either = j-g 1 [
         either = no j-trip [
             j-g: 0
             j-lnow: 0
-            pat-use pat-find j-pat 0
-            j-board: seq-index j-bseq
-            j-alight: seq-index j-aseq
+            j-board: bk
+            j-alight: ak
+            jt-n: n
             j-opt: 1
             refresh-geom
             either = j-st 'DESTINATION_SELECTED [ j-st: 'JOURNEY_PROPOSED ] [ none ]
@@ -178,15 +183,28 @@ track-speed: func [s] [
         v-cms: / * - s a-s 100 dt
         a-s: s
         a-t: j-now
+        sp-fast: either >= v-cms c 'board-cms [ either < sp-fast 99 [ + sp-fast 1 ] [ sp-fast ] ] [ 0 ]
+        sp-ride: either >= v-cms c 'ride-cms [ either < sp-ride 99 [ + sp-ride 1 ] [ sp-ride ] ] [ 0 ]
+        sp-walk: either < v-cms c 'ride-cms [
+            either >= v-cms c 'dwell-cms [ either < sp-walk 99 [ + sp-walk 1 ] [ sp-walk ] ] [ 0 ]
+        ] [ 0 ]
     ] [ none ]
 ]
 board-detect: func [] [
     either > to-board-m 200 [ 0 ] [
         bs: sv j-board 0
-        match f-x f-y - bs 30 + bs 150 -100000
+        match
         track-speed mt-s
+        either <= eta c 'board-due-s [ due-t: j-now ] [ none ]
+        either > mt-s + bs c 'pass-m [ none ] [ w-t: j-now ]
         either > mt-s + bs c 'board-m [
-            either < mt-lat c 'alight-lat-m [ >= v-cms c 'board-cms ] [ 0 ]
+            either < mt-lat c 'alight-lat-m [
+                either <= - j-now due-t c 'board-due-s [
+                    either >= sp-ride c 'ride-samples [ 1 ] [
+                        either >= sp-ride 1 [ <= - j-now w-t c 'board-run-s ] [ 0 ]
+                    ]
+                ] [ 0 ]
+            ] [ 0 ]
         ] [ 0 ]
     ]
 ]
@@ -212,15 +230,16 @@ enter-bus: func [] [
     m-t: j-now
     m-lat: 0
     lat-n: 0
+    al-d: 0
     j-next: + j-board 1
     press-t: -1
     adv-next
     bus-alert
 ]
 adv-next: func [] [
-    either < j-next st-n [
+    either < j-next jt-n [ either jw-has j-next [
         either >= m-s + sv j-next 0 c 'pass-m [ j-next: + j-next 1  adv-next ] [ none ]
-    ] [ none ]
+    ] [ none ] ] [ none ]
 ]
 m-hist: new-block 3
 m-hk: 0
@@ -233,8 +252,7 @@ hist-fill: func [s] [ block-set! m-hist 0 s  block-set! m-hist 1 s  block-set! m
 bus-update: func [] [
     dt: - j-now m-t
     either < dt 1 [ dt: 1 ] [ none ]
-    floor: - m-s c 'back-tol-m
-    match f-x f-y floor + + + m-s / * c 'max-cms dt 100 f-acc 30 floor
+    match
     either > dt 5 [ hist-fill mt-s ] [ block-set! m-hist m-hk mt-s ]
     m-hk: mod + m-hk 1 3
     cand: med3 block-at m-hist 0 block-at m-hist 1 block-at m-hist 2
@@ -249,17 +267,23 @@ stops-to-go: func [] [ + 1 - j-alight j-next ]
 bus-alert: func [] [
     ts: sv j-alight 0
     either > m-lat c 'alight-lat-m [ lat-n: + lat-n 1 ] [ lat-n: 0 ]
+    either < v-cms c 'dwell-cms [ either >= m-s - ts 80 [ either <= m-s + ts 80 [ al-d: 1 ] [ none ] ] [ none ] ] [ none ]
+    either >= sp-fast c 'missed-samples [ al-d: 0 ] [ none ]
     either >= lat-n c 'alight-fixes [
         either >= m-s - ts 80 [
             either < v-cms c 'board-cms [ enter-final ] [ none ]
         ] [ none ]
-    ] [ none ]
+    ] [
+        either al-d [ either >= sp-walk c 'alight-walk-n [
+            either >= m-s - ts 80 [ enter-final ] [ none ]
+        ] [ none ] ] [ none ]
+    ]
     either = j-st 'ON_BUS [ bus-alert2 ts ] [ none ]
 ]
 bus-alert2: func [ts] [
     either > j-next j-alight [
         either >= - m-s ts c 'missed-m [
-            either >= v-cms c 'board-cms [ missed-stop ] [ none ]
+            either >= sp-fast c 'missed-samples [ missed-stop ] [ none ]
         ] [ none ]
     ] [ none ]
     rem: - j-alight j-next
@@ -276,7 +300,7 @@ bus-alert2: func [ts] [
     j-buzz: either = j-alert 'PRESS_STOP [ 2 ] [ either = j-alert 'GET_OFF [ 2 ] [ either = j-alert 'GET_READY [ 1 ] [ 0 ] ] ]
 ]
 missed-stop: func [] [
-    j-alight: either < j-next st-n [ j-next ] [ - st-n 1 ]
+    j-alight: either < j-next jt-n [ j-next ] [ - jt-n 1 ]
     j-note: 2
     press-t: -1
 ]
@@ -309,7 +333,8 @@ reset-journey: func [] [
     j-st: 'IDLE  j-dest: -1  j-opt: -1  j-board: -1  j-alight: -1
     j-alert: 'NONE  j-leave: 'NONE  j-note: 0  j-where: 0  j-walk: 0  j-buzz: 0
     fare-r: 'unknown  fare-ri: -1
-    j-q: 0  j-g: 0  j-trip: -1  j-pat: -1  j-bseq: -1  j-aseq: -1  j-lnow: 0
+    j-q: 0  j-g: 0  j-trip: -1  j-bseq: -1  j-aseq: -1  j-lnow: 0
+    jt-n: 0  jw-clear 0  due-t: -100000  w-t: -100000
 ]
 choose: func [k] [
     reset-journey

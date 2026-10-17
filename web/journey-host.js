@@ -1,12 +1,12 @@
 
 import { readState } from "./view-model.js";
-import { patternSource } from "./glon-data.js";
+import { ActiveTrip } from "./transit/active-trip.js";
 export { readState };
 
 const MATCH_S = 90;
 
 export class JourneyHost {
-  constructor(machine, proj, { onRender = () => {}, effects = null, transit = null } = {}) {
+  constructor(machine, proj, { onRender = () => {}, effects = null, transit = null, geometry = "full" } = {}) {
     this.machine = machine;
     this.proj = proj;
     this.onRender = onRender;
@@ -18,16 +18,25 @@ export class JourneyHost {
     this.delays = new Map();          // trip-wide realtime per tripNo: { delay, seen }
     this.stopFacts = new Map();       // latest stop-predictions answer per stopId: { seen, facts }
     this.sentRt = new Map();          // call ref -> the realtime fact Glon last received for it
-    this.loadedPatterns = new Set();  // patterns glon_load-ed this session (never twice)
-    this.activePattern = null;        // the pattern of Glon's chosen trip (for names)
+    this.geometry = geometry;         // measurement geometry: "full" GTFS shape (B1.2 Stage C), or "glon" (the old simplified one)
+    this.active = null;               // the ActiveTrip Glon chose (the host keeps it whole)
+    this.activePattern = null;        // its pattern (stop names, route name, headsign)
+    this.heldRows = new Set();        // stop rows (k) Glon has been sent for the current window
     this.answeredQ = -1;
-    this.answeredG = "";
+    this.answeredA = "";
     this.depth = 0;
   }
 
   position({ lat, lon, accuracy = 10 }) {
     const [x, y] = this.proj.toXY(lat, lon);
-    return this.#send("fix", `${x} ${y} ${Math.max(0, Math.round(accuracy))}`);
+    const acc = Math.max(0, Math.round(accuracy));
+    let s = -1, l = -1;
+    const req = this.state.measure;
+    if (req && this.active) {
+      const m = this.active.measure(req, { x, y, acc, t: this.#now() });
+      s = m.s; l = m.lat;
+    }
+    return this.#send("fix", `${x} ${y} ${acc} ${s} ${l}`);
   }
   clock(time) { this.lastClock = time; return this.#send("clock", `${time.secs} ${time.date} ${time.weekday}`); }
   realtime({ trip, delay, seen = this.#now() }) {
@@ -47,6 +56,10 @@ export class JourneyHost {
     return this.#send("rt-lost");
   }
   command(name, value) { return this.#send(name, value); }
+  destination(k, { lat, lon }) {
+    const [x, y] = this.proj.toXY(lat, lon);
+    return this.#send("dest-at", `${k} ${x} ${y}`);
+  }
 
   realtimeStops(max = 8) {
     const set = this.candidateSet, p = this.state.realtime;
@@ -105,22 +118,29 @@ export class JourneyHost {
     return this.realtimeEnd(seen);
   }
 
-  #loadTrip(patNo, tripNo) {
-    const p = this.transit.pattern(patNo);
-    if (!this.loadedPatterns.has(patNo)) {
-      this.machine.load(patternSource(p, this.proj), `pattern ${patNo}`);
-      this.loadedPatterns.add(patNo);
-    }
-    const times = this.transit.tripTimes(tripNo);
-    this.#send("trip-begin", `${tripNo} ${patNo}`);
-    for (let k = 0; k < times.length; k += 7) this.#send("trip-times", [k, ...times.slice(k, k + 7).map((t) => t.dep)].join(" "));
-    this.activePattern = p;
-    return this.#send("trip-ready", String(tripNo));
+  #activate({ trip, bseq, aseq }) {
+    this.active = new ActiveTrip({ provider: this.transit, tripNo: trip, proj: this.proj, geometry: this.geometry });
+    this.activePattern = this.active.pattern;
+    const a = this.active.activation(bseq, aseq);
+    if (a.boardK < 0 || a.alightK < 0) throw new Error(`trip ${trip} has no call with stop_sequence ${a.boardK < 0 ? bseq : aseq}`);
+    const rows = this.active.window({ base: a.boardK, board: a.boardK, target: a.alightK });
+    this.heldRows = new Set(rows.map((r) => r.k));
+    this.servedWindow = `${a.boardK} ${a.boardK} ${a.alightK}`;
+    for (const r of rows) this.#send("jw", ActiveTrip.fact(r).join(" "));
+    return this.#send("jt", `${a.trip} ${a.boardK} ${a.alightK} ${a.n}`);
+  }
+
+  #serveWindow(w) {
+    const rows = this.active.window(w);
+    this.servedWindow = `${w.base} ${w.board} ${w.target}`;
+    const fresh = rows.filter((r) => !this.heldRows.has(r.k));
+    this.heldRows = new Set(rows.map((r) => r.k));
+    for (const r of fresh) this.#send("jw", ActiveTrip.fact(r).join(" "));
   }
 
   #serve() {
     for (let guard = 0; guard < 8 && this.transit; guard++) {
-      const q = this.state.request, g = this.state.need;
+      const q = this.state.request, a = this.state.activate, w = this.state.window;
       if (q && q.gen !== this.answeredQ && this.lastClock) {
         this.answeredQ = q.gen;
         const [oLat, oLon] = this.proj.toLatLon(q.ox, q.oy), [dLat, dLon] = this.proj.toLatLon(q.dx, q.dy);
@@ -128,9 +148,11 @@ export class JourneyHost {
           date: this.lastClock.date, now: this.lastClock.secs, origin: { lat: oLat, lon: oLon }, dest: { lat: dLat, lon: dLon },
           radiusO: q.radiusO, radiusD: q.radiusD, horizon: q.horizon,
         }), q.gen);
-      } else if (g && `${g.pat}/${g.trip}` !== this.answeredG) {
-        this.answeredG = `${g.pat}/${g.trip}`;
-        this.#loadTrip(g.pat, g.trip);
+      } else if (a && `${a.trip}/${a.bseq}/${a.aseq}` !== this.answeredA) {
+        this.answeredA = `${a.trip}/${a.bseq}/${a.aseq}`;
+        this.#activate(a);
+      } else if (w && this.active && `${w.base} ${w.board} ${w.target}` !== this.servedWindow) {
+        this.#serveWindow(w);
       } else return;
     }
   }
@@ -139,7 +161,8 @@ export class JourneyHost {
     const prev = this.state;
     this.record = this.machine.event(token, value);
     this.state = readState(this.record);
-    if (!this.state.need) this.answeredG = "";            // a later choice may ask again
+    if (!this.state.activate) this.answeredA = "";        // a later choice may ask again
+    if (this.activePattern) { this.state.route = this.activePattern.name; this.state.head = this.activePattern.headsign; }
     if (this.effects && this.state.buzz > 0 &&
         (this.state.alert !== prev.alert || this.state.state !== prev.state)) {
       this.effects.alert(this.state.buzz, this.state.alert !== "NONE" ? this.state.alert : this.state.state);

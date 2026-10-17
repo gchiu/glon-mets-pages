@@ -26,10 +26,13 @@ function simplify(points, tolM, keep) {
   return points.filter((_, i) => out[i]);
 }
 
+export const MAX_PATTERN_POINTS = 400;
+
 export class GtfsTransitProvider {
-  constructor({ index, realtime = null, simplifyM = 2, limits = DEFAULT_LIMITS }) {
+  constructor({ index, realtime = null, simplifyM = 2, maxPoints = MAX_PATTERN_POINTS, limits = DEFAULT_LIMITS }) {
     this.index = index;
     this.simplifyM = simplifyM;
+    this.maxPoints = maxPoints;
     this.limits = limits;
     this.tripIds = [...index.trips.keys()].sort();
     this.tripNoOf = new Map(this.tripIds.map((id, i) => [id, i]));
@@ -67,7 +70,9 @@ export class GtfsTransitProvider {
       keep.push(bi);
       return { stopId: row.stopId, name: s.stop_name, lat: s.lat, lon: s.lon, dist_m: shape[bi][2], seq: row.seq };
     });
-    const points = simplify(shape, this.simplifyM, keep).map(([la, lo, d]) => [la, lo, d]);
+    let tol = this.simplifyM, points = simplify(shape, tol, keep);
+    while (points.length > this.maxPoints && tol < 50) { tol *= 1.25; points = simplify(shape, tol, keep); }
+    points = points.map(([la, lo, d]) => [la, lo, d]);
     const route = this.index.routes.get(p.routeId) || {};
     const out = { patNo, name: route.route_short_name || p.routeId, headsign: p.headsign, points, stops };
     this.patternCache.set(patNo, out);

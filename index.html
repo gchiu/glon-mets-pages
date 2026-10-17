@@ -10,7 +10,30 @@
 <link rel="stylesheet" href="web/style.css">
 </head>
 <body>
-<main id="view"><div id="vb" aria-live="polite"></div><div id="va"></div></main>
+<main id="view">
+  <div id="mode" class="mode" hidden>
+    <p id="mode-text"></p>
+    <button id="leave-demo" type="button">Leave demo</button>
+  </div>
+  <div id="vb" aria-live="polite"></div><div id="va"></div>
+  <p id="status" class="status" role="status"></p>
+</main>
+<section id="places" class="places" hidden aria-label="My places">
+  <h1>Add a place</h1>
+  <p class="hint">Places you add are kept only in this browser.</p>
+  <button id="place-here" type="button">Use my current location</button>
+  <div class="row" id="place-here-form" hidden>
+    <input id="place-name" maxlength="60" autocomplete="off" placeholder="Name, for example Home" aria-label="Name for this place">
+    <button id="place-save" type="button">Save</button>
+  </div>
+  <p id="place-msg" role="status"></p>
+  <h2>Find a landmark</h2>
+  <input id="place-search" type="search" autocomplete="off" placeholder="Search Wellington landmarks" aria-label="Search landmarks">
+  <ul id="place-results" class="plist"></ul>
+  <h2>My places</h2>
+  <ul id="place-list" class="plist"></ul>
+  <button id="places-close" type="button" class="done">Done</button>
+</section>
 <details class="dev rt" id="rt-panel">
   <summary>Metlink realtime</summary>
   <p id="rt-msg" role="status"></p>
@@ -30,7 +53,7 @@
   </form>
   <div id="rt-check"></div>
 </details>
-<details class="dev" open>
+<details class="dev" id="sim-panel" hidden>
   <summary>Simulation / test controls</summary>
   <div class="row">
     <select id="scenario" aria-label="Scenario"></select>
@@ -46,9 +69,7 @@
   <div class="row">
     <button id="start-sim">Restart simulation</button>
     <button id="droprt">Drop live data</button>
-    <button id="start-live">Use real GPS</button>
   </div>
-  <p id="status"></p>
 </details>
 <script type="module" src="web/app.js"></script>
 </body>

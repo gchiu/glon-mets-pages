@@ -1,6 +1,13 @@
 [
 cfg: [
     [board-cms 300]     
+    [ride-cms 200]      
+    [ride-samples 2]    
+    [board-due-s 180]   
+    [board-run-s 12]    
+    [missed-samples 2]  
+    [dwell-cms 50]      
+    [alight-walk-n 8]   
     [alight-lat-m 30]   
     [alight-fixes 3]    
     [pass-m 15]         
