@@ -5,6 +5,14 @@ export const NAME_MAX = 60;
 
 const isCoord = (v, lim) => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= lim;
 
+export const isHomeName = (name) => cleanName(name).toLowerCase() === "home";
+export const HOME_TAKEN = "Home is already set up. To move it, use Change Home in Settings.";
+export const DUPLICATE_M = 50;   // another "Home" this close to Home is the same place
+const metres = (a, b) => {
+  const r = Math.PI / 180, x = (b.lon - a.lon) * r * Math.cos((a.lat + b.lat) / 2 * r), y = (b.lat - a.lat) * r;
+  return Math.hypot(x, y) * 6371000;
+};
+
 export function cleanName(name) {
   const s = String(name == null ? "" : name).replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim();
   return s.slice(0, NAME_MAX);
@@ -55,7 +63,25 @@ export class MyPlaces {
           ...(p.home === true && !this.places.some((q) => q.home) ? { home: true } : {}) });
       }
     } catch { this.places = []; this.recovered = true; }
+    if (this.#oneHome()) this.#save();
     return this.places;
+  }
+
+  #oneHome() {
+    let changed = false, home = this.home();
+    if (!home) {
+      home = this.places.find((p) => isHomeName(p.name));
+      if (home) { home.home = true; changed = true; }
+    }
+    if (!home) return changed;
+    const keep = [];
+    for (const p of this.places) {
+      if (p === home || !isHomeName(p.name)) { keep.push(p); continue; }
+      changed = true;
+      if (metres(p, home) > DUPLICATE_M) { p.name = "Previous Home"; keep.push(p); }
+    }
+    this.places = keep;
+    return changed;
   }
 
   #save() {
@@ -93,6 +119,10 @@ export class MyPlaces {
     const n = cleanName(name);
     if (!n) throw new Error("Give the place a name.");
     if (!point || !isCoord(point.lat, 90) || !isCoord(point.lon, 180)) throw new Error("That place has no location.");
+    if (isHomeName(n)) {
+      if (this.home()) throw new Error(HOME_TAKEN);
+      return this.setHome(point);
+    }
     const same = this.places.find((p) => p.name === n && Math.abs(p.lat - point.lat) < 1e-5 && Math.abs(p.lon - point.lon) < 1e-5);
     if (same) return same;
     const p = { id: this.#newId(), name: n, lat: point.lat, lon: point.lon };
@@ -115,6 +145,7 @@ export class MyPlaces {
     const p = this.get(id), n = cleanName(name);
     if (!p) throw new Error("No such place.");
     if (!n) throw new Error("Give the place a name.");
+    if (isHomeName(n) && !p.home) throw new Error(HOME_TAKEN);
     p.name = n;
     this.#save();
     return p;

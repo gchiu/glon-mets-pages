@@ -4,9 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f3d3e">
-<title>DoorDash D1</title>
+<title>Glon-Mets</title>
+<meta name="application-name" content="Glon-Mets">
+<meta name="apple-mobile-web-app-title" content="Glon-Mets">
+<meta name="description" content="A public-transport journey companion for Wellington.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="web/icon.svg" type="image/svg+xml">
+<link rel="icon" href="web/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="web/apple-touch-icon.png">
 <link rel="stylesheet" href="web/style.css">
 </head>
 <body>
@@ -47,6 +52,8 @@
   <h1>Settings</h1>
   <h2>Home</h2>
   <button id="set-home" type="button" class="big">Change Home</button>
+  <h2>My Places</h2>
+  <button id="set-myplaces" type="button" class="big">My Places</button>
   <h2>Fare</h2>
   <p id="set-fare-now"></p>
   <button id="set-fare" type="button" class="big">Change fare type</button>
@@ -72,9 +79,29 @@
   <p class="attrib">Place search © OpenStreetMap contributors</p>
   <h2>Popular Wellington places</h2>
   <ul id="place-results" class="plist"></ul>
-  <h2>My places</h2>
-  <ul id="place-list" class="plist"></ul>
   <button id="places-close" type="button" class="done">Done</button>
+</section>
+<section id="myplaces" class="places" hidden aria-label="My Places">
+  <h1>My Places</h1>
+  <ul id="myplaces-list" class="plist manage"></ul>
+  <div id="myplaces-confirm" class="confirm" role="alertdialog" aria-labelledby="myplaces-confirm-text" hidden>
+    <p id="myplaces-confirm-text"></p>
+    <div class="row">
+      <button id="myplaces-cancel" type="button">Cancel</button>
+      <button id="myplaces-remove" type="button" class="danger">Remove</button>
+    </div>
+  </div>
+  <div id="myplaces-rename" class="confirm" role="dialog" aria-labelledby="myplaces-rename-title" hidden>
+    <p id="myplaces-rename-title"></p>
+    <input id="myplaces-rename-name" maxlength="60" autocomplete="off" aria-label="New name">
+    <p id="myplaces-rename-msg" class="hint" role="status"></p>
+    <div class="row">
+      <button id="myplaces-rename-cancel" type="button">Cancel</button>
+      <button id="myplaces-rename-save" type="button" class="danger">Save</button>
+    </div>
+  </div>
+  <p id="myplaces-msg" role="status"></p>
+  <button id="myplaces-close" type="button" class="done">Done</button>
 </section>
 <details class="dev rt" id="rt-panel">
   <summary>Metlink realtime</summary>

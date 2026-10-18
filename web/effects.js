@@ -22,7 +22,7 @@ export class PlatformEffects {
     try {
       if (level >= 2 && globalThis.Notification && Notification.permission === "granted" &&
           globalThis.document && document.visibilityState !== "visible") {
-        new Notification("DoorDash", { body: label.replace(/_/g, " "), tag: "doordash-alert", renotify: true });
+        new Notification("Glon-Mets", { body: label.replace(/_/g, " "), tag: "doordash-alert", renotify: true });
       }
     } catch { /* ignore */ }
   }

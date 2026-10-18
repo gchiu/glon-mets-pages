@@ -86,6 +86,16 @@ button { font: inherit; border: 1px solid var(--line); background: var(--card); 
 .plist.found .pname { display: block; font-weight: 700; font-size: 1.1rem; }
 .plist.found .pdetail { display: block; color: var(--muted); font-size: 0.95rem; }
 .plist.found button, #place-find-go { min-height: 48px; min-width: 88px; font-size: 1.05rem; }
+.plist.manage li { padding: 12px 0; }
+.plist.manage .pname { flex: 1 1 auto; font-size: 1.15rem; font-weight: 700; }
+.plist.manage button { min-height: 48px; min-width: 120px; font-size: 1.05rem; }
+.confirm { border: 2px solid var(--line); border-radius: 16px; padding: 12px 16px; margin: 16px 0; background: var(--card); }
+.confirm p { font-size: 1.25rem; font-weight: 700; margin: 0 0 10px; }
+.confirm .row button { flex: 1 1 0; min-height: 56px; font-size: 1.1rem; }
+.confirm .danger { font-weight: 700; }
+.confirm input { display: block; width: 100%; box-sizing: border-box; font: inherit; font-size: 1.2rem; min-height: 52px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.confirm .hint:empty { display: none; }
+.plist.manage li button + button { margin-left: 0; }
 .places .attrib { color: var(--muted); font-size: 0.8rem; margin: 4px 0 0; }
 .status:empty { display: none; }
 .dev.rt { color: var(--fg); }

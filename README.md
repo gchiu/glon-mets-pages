@@ -1,7 +1,7 @@
 # glon-mets-pages
 
 Deployment output only: a public test build of a journey-companion web app.
-Built from source commit `cb0ca06`. Do not edit here.
+Built from source commit `d7725b3`. Do not edit here.
 
 The app starts as a real journey from the user's own location and the current time.
 A built-in simulation, for testing only, runs when `?demo=1` is added to the address.

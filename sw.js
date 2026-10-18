@@ -1,8 +1,8 @@
-const VERSION = "dd-u1-sw4";
+const VERSION = "dd-u1-sw6";
 const OWN = (k) => k.startsWith("dd-");
 const SHELL = [
   "./", "index.html", "manifest.webmanifest",
-  "web/style.css", "web/icon.svg", "web/app.js", "web/boot.js", "web/glon-machine.js", "web/glon-data.js",
+  "web/style.css", "web/icon.svg", "web/icon-192.png", "web/icon-512.png", "web/icon-maskable-192.png", "web/icon-maskable-512.png", "web/apple-touch-icon.png", "web/app.js", "web/boot.js", "web/glon-machine.js", "web/glon-data.js",
   "web/geo.js", "web/clock.js", "web/journey-host.js", "web/view-model.js", "web/ui.js", "web/effects.js",
   "web/location/location-providers.js", "web/transit/gtfs-transit.js", "web/transit/candidates.js",
   "web/transit/metlink-realtime.js", "web/realtime-settings.js", "web/transit/active-trip.js", "web/transit/route-measure.js",

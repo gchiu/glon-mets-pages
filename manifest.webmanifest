@@ -1,14 +1,20 @@
 {
-  "name": "DoorDash (working title)",
-  "short_name": "DoorDash",
-  "description": "A public-transport journey companion that stays with you from your door to your destination.",
-  "start_url": "./index.html",
+  "id": "./",
+  "name": "Glon-Mets",
+  "short_name": "Glon-Mets",
+  "description": "A public-transport journey companion for Wellington: from where you are to where you want to go.",
+  "lang": "en-NZ",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f4f1ea",
   "theme_color": "#0f3d3e",
   "icons": [
+    { "src": "web/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "web/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "web/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "web/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "web/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ]
 }

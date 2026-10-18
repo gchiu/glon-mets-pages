@@ -219,7 +219,7 @@ document.addEventListener("click", (e) => {
 const el = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); n.append(...kids); return n; };
 function repaintView() { if (session) paint(session.host.state, namesFor(session.host, session.profile)); }
 function placeMsg(t) { $("#place-msg").textContent = t || ""; }
-const SCREENS = ["view", "setup-home", "setup-fare", "places", "settings"];
+const SCREENS = ["view", "setup-home", "setup-fare", "places", "settings", "myplaces"];
 function show(id) {
   for (const s of SCREENS) $("#" + s).hidden = s !== id;
   if (id === "view") repaintView();
@@ -290,6 +290,7 @@ function openSettings() {
   show("settings");
 }
 $("#set-home").onclick = () => openHomeSetup(true);
+$("#set-myplaces").onclick = () => openMyPlaces();
 $("#set-fare").onclick = () => openFareSetup(true);
 $("#settings-close").onclick = () => goNext();
 
@@ -308,13 +309,73 @@ function renderPlaces() {
     el("span", { textContent: l.name }),
     have.has(l.id) ? el("span", { className: "sched", textContent: "Added" })
       : el("button", { type: "button", textContent: "Add", onclick: () => { places.addLandmark(l); placeMsg(`Added ${l.name}.`); renderPlaces(); repaintView(); } }))));
-  $("#place-list").replaceChildren(
-    ...places.places.map((p) => {
-      const name = el("input", { value: p.name, maxLength: 60, ariaLabel: "Place name" });
-      return el("li", {}, name,
-        el("button", { type: "button", textContent: "Rename", onclick: () => { try { places.rename(p.id, name.value); placeMsg("Renamed."); } catch (err) { placeMsg(err.message); } renderPlaces(); repaintView(); } }),
-        el("button", { type: "button", textContent: "Delete", onclick: () => { places.remove(p.id); if (chosenPlace && chosenPlace.id === p.id) chosenPlace = null; placeMsg("Deleted."); renderPlaces(); repaintView(); } }));
-    }));
+}
+
+let removing = null;           // the place awaiting "Remove …?" confirmation
+let renaming = null;           // the place being renamed
+function openMyPlaces() {
+  if (!places) return;
+  removing = null; renaming = null;
+  $("#myplaces-msg").textContent = "";
+  renderMyPlaces();
+  show("myplaces");
+}
+function renderMyPlaces() {
+  const home = places.home();
+  $("#myplaces-list").replaceChildren(
+    ...(home ? [el("li", {}, el("span", { className: "pname", textContent: home.name }),
+      el("button", { type: "button", textContent: "Change Home", onclick: () => openHomeSetup(true) }))] : []),
+    ...places.places.filter((p) => !p.home).map((p) => el("li", {}, el("span", { className: "pname", textContent: p.name }),
+      el("button", { type: "button", textContent: "Rename", onclick: () => askRename(p) }),
+      el("button", { type: "button", textContent: "Remove", onclick: () => askRemove(p) }))));
+  $("#myplaces-confirm").hidden = !removing;
+  $("#myplaces-rename").hidden = !renaming;
+  $("#myplaces-list").hidden = !!(removing || renaming);
+}
+function askRename(p) {
+  renaming = p; removing = null;
+  $("#myplaces-rename-title").textContent = `Rename ${p.name}`;
+  $("#myplaces-rename-name").value = p.name;
+  $("#myplaces-rename-msg").textContent = "";
+  $("#myplaces-msg").textContent = "";
+  renderMyPlaces();
+  $("#myplaces-rename-name").focus();
+}
+$("#myplaces-rename-cancel").onclick = () => { renaming = null; renderMyPlaces(); };
+$("#myplaces-rename-save").onclick = () => {
+  const p = renaming;
+  if (!p) return;
+  try { places.rename(p.id, $("#myplaces-rename-name").value); }
+  catch (err) { $("#myplaces-rename-msg").textContent = err.message; return; }   // e.g. "Home", or no name
+  renaming = null;
+  $("#myplaces-msg").textContent = `Renamed to ${p.name}.`;
+  renderMyPlaces();
+  repaintView();
+};
+$("#myplaces-rename-name").onkeydown = (e) => { if (e.key === "Enter") $("#myplaces-rename-save").click(); };
+function askRemove(p) {
+  removing = p; renaming = null;
+  $("#myplaces-confirm-text").textContent = `Remove ${p.name}?`;
+  $("#myplaces-msg").textContent = "";
+  renderMyPlaces();
+  $("#myplaces-cancel").focus();
+}
+$("#myplaces-cancel").onclick = () => { removing = null; renderMyPlaces(); };
+$("#myplaces-remove").onclick = () => {
+  const p = removing;
+  removing = null;
+  if (p) removePlace(p.id);
+  $("#myplaces-msg").textContent = p ? `${p.name} removed.` : "";
+  renderMyPlaces();
+};
+$("#myplaces-close").onclick = () => openSettings();
+function removePlace(id) {
+  if (!places.remove(id)) return;
+  if (chosenPlace && chosenPlace.id === id) {
+    chosenPlace = null;
+    if (session && session.host.state.state !== "IDLE") session.host.command("cancel");
+  }
+  repaintView();
 }
 $("#place-here").onclick = () => {
   if (!lastFix) { placeMsg("Your location is not known yet. Allow location for this site, then try again."); return; }
@@ -337,7 +398,7 @@ function renderFound() {
     el("span", {}, el("span", { className: "pname", textContent: r.name }), el("span", { className: "pdetail", textContent: r.detail })),
     saved(r) ? el("span", { className: "sched", textContent: "Added" })
       : el("button", { type: "button", textContent: "Add", onclick: () => {
-        places.addPlace(r.name, r);
+        try { places.addPlace(r.name, r); } catch (err) { placeMsg(err.message); return; }   // e.g. a second "Home"
         found = [];
         goNext();
       } }))));

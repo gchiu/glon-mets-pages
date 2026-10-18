@@ -123,7 +123,7 @@ function body(v, names) {
 }
 
 export function renderView(v, names) {
-  let h = `<div class="bar"><b>DoorDash</b><span>${STATE_LABEL[v.state] || ""}</span></div>` + body(v, names);
+  let h = `<div class="bar"><b>Glon-Mets</b><span>${STATE_LABEL[v.state] || ""}</span></div>` + body(v, names);
   if (v.note) h += `<p class="note">${v.note === 5 ? esc(names.dests[v.dest] || "") + " " : ""}${NOTES[v.note] || ""}</p>`;
   if (v.where) h += `<div class="where"><p>${esc(whereAmI(v, names))}</p></div>`;
   let a = "";
