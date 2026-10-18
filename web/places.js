@@ -85,10 +85,17 @@ export class MyPlaces {
   }
 
   addHere(name, fix) {
+    if (!fix || !isCoord(fix.lat, 90) || !isCoord(fix.lon, 180)) throw new Error("Your location is not known yet.");
+    return this.addPlace(name, fix);
+  }
+
+  addPlace(name, point) {
     const n = cleanName(name);
     if (!n) throw new Error("Give the place a name.");
-    if (!fix || !isCoord(fix.lat, 90) || !isCoord(fix.lon, 180)) throw new Error("Your location is not known yet.");
-    const p = { id: this.#newId(), name: n, lat: fix.lat, lon: fix.lon };
+    if (!point || !isCoord(point.lat, 90) || !isCoord(point.lon, 180)) throw new Error("That place has no location.");
+    const same = this.places.find((p) => p.name === n && Math.abs(p.lat - point.lat) < 1e-5 && Math.abs(p.lon - point.lon) < 1e-5);
+    if (same) return same;
+    const p = { id: this.#newId(), name: n, lat: point.lat, lon: point.lon };
     this.places.push(p);
     this.#save();
     return p;

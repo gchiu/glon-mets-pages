@@ -1,4 +1,4 @@
-const VERSION = "dd-u1-sw3";
+const VERSION = "dd-u1-sw4";
 const OWN = (k) => k.startsWith("dd-");
 const SHELL = [
   "./", "index.html", "manifest.webmanifest",
@@ -6,7 +6,7 @@ const SHELL = [
   "web/geo.js", "web/clock.js", "web/journey-host.js", "web/view-model.js", "web/ui.js", "web/effects.js",
   "web/location/location-providers.js", "web/transit/gtfs-transit.js", "web/transit/candidates.js",
   "web/transit/metlink-realtime.js", "web/realtime-settings.js", "web/transit/active-trip.js", "web/transit/route-measure.js",
-  "web/gtfs/gtfs-index.js", "web/startup.js", "web/places.js", "config/landmarks.json",
+  "web/gtfs/gtfs-index.js", "web/startup.js", "web/places.js", "web/geocoder.js", "config/landmarks.json",
   "web/sim/journey-sim.js", "web/sim/scenarios.js",
   "vendor/glon/glon-kaka.wasm", "vendor/glon/prelude.glon", "vendor/glon/strings.glon", "vendor/glon/kaka-lib-subset.glon",
   "glon/dd-support.glon", "glon/route-match.glon", "glon/fare.glon", "glon/journey.glon", "glon/candidates.glon", "glon/view.glon", "glon/app.glon",

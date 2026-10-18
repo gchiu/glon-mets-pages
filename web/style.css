@@ -82,6 +82,11 @@ button { font: inherit; border: 1px solid var(--line); background: var(--card); 
 .places.setup h1 { font-size: 1.6rem; }
 .settings-link { margin-top: 18px; width: 100%; background: transparent; }
 #home-msg, #place-msg { font-size: 1.05rem; }
+.plist.found li { padding: 10px 0; }
+.plist.found .pname { display: block; font-weight: 700; font-size: 1.1rem; }
+.plist.found .pdetail { display: block; color: var(--muted); font-size: 0.95rem; }
+.plist.found button, #place-find-go { min-height: 48px; min-width: 88px; font-size: 1.05rem; }
+.places .attrib { color: var(--muted); font-size: 0.8rem; margin: 4px 0 0; }
 .status:empty { display: none; }
 .dev.rt { color: var(--fg); }
 .dev.rt summary { font-weight: 700; }

@@ -1,10 +1,14 @@
 # glon-mets-pages
 
 Deployment output only: a public test build of a journey-companion web app.
-Built from source commit `f065f63`. Do not edit here.
+Built from source commit `cb0ca06`. Do not edit here.
 
 The app starts as a real journey from the user's own location and the current time.
 A built-in simulation, for testing only, runs when `?demo=1` is added to the address.
+
+Places the user saves (including Home) and their fare type stay in their own browser. "Search for a
+place or address" sends only the text the user typed, when they press Search, to OpenStreetMap's
+Nominatim service (Wellington region only); no location or saved place is sent.
 
 Bus times are labelled by where they come from:
 

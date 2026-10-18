@@ -57,14 +57,20 @@
 <section id="places" class="places" hidden aria-label="My places">
   <h1>Add a place</h1>
   <p class="hint">Places you add are kept only in this browser.</p>
-  <button id="place-here" type="button">Use my current location</button>
+  <button id="place-here" type="button" class="big">Use my current location</button>
   <div class="row" id="place-here-form" hidden>
     <input id="place-name" maxlength="60" autocomplete="off" placeholder="Name, for example Home" aria-label="Name for this place">
     <button id="place-save" type="button">Save</button>
   </div>
+  <h2>Search for a place or address</h2>
+  <form class="row" id="place-find" autocomplete="off">
+    <input id="place-search" type="search" autocomplete="off" placeholder="For example TSB Arena" aria-label="Search for a place or address">
+    <button id="place-find-go" type="submit">Search</button>
+  </form>
   <p id="place-msg" role="status"></p>
-  <h2>Find a landmark</h2>
-  <input id="place-search" type="search" autocomplete="off" placeholder="Search Wellington landmarks" aria-label="Search landmarks">
+  <ul id="place-found" class="plist found"></ul>
+  <p class="attrib">Place search © OpenStreetMap contributors</p>
+  <h2>Popular Wellington places</h2>
   <ul id="place-results" class="plist"></ul>
   <h2>My places</h2>
   <ul id="place-list" class="plist"></ul>

@@ -12,6 +12,7 @@ import { SCENARIOS, scenario } from "./sim/scenarios.js";
 import { RealtimePoller } from "./transit/metlink-realtime.js";
 import { RealtimeKeys, statusText, stopCheckRows } from "./realtime-settings.js";
 import { startupMode, passengerUrl, locationProblem } from "./startup.js";
+import { NominatimGeocoder } from "./geocoder.js";
 import { MyPlaces, catalogue, passengerProfile, PLACE_SLOT, FareSetting, setupStep, findStops, parseLocation } from "./places.js";
 
 const $ = (s) => document.querySelector(s);
@@ -295,6 +296,7 @@ $("#settings-close").onclick = () => goNext();
 function openPlaces() {
   if (!places) return;
   $("#place-here-form").hidden = true; $("#place-search").value = ""; placeMsg("");
+  found = []; renderFound();
   renderPlaces();
   show("places");
 }
@@ -324,8 +326,41 @@ $("#place-save").onclick = () => {
   renderPlaces(); repaintView();
 };
 $("#place-name").onkeydown = (e) => { if (e.key === "Enter") $("#place-save").click(); };
-$("#place-search").oninput = () => renderPlaces();
+$("#place-search").oninput = () => renderPlaces();       // filters the popular places, locally
 $("#places-close").onclick = () => closePlaces();
+
+const geocoder = MODE === "passenger" ? new NominatimGeocoder() : null;
+let found = [];
+function renderFound() {
+  const saved = (r) => places.places.some((p) => p.name === r.name && Math.abs(p.lat - r.lat) < 1e-5 && Math.abs(p.lon - r.lon) < 1e-5);
+  $("#place-found").replaceChildren(...found.map((r) => el("li", {},
+    el("span", {}, el("span", { className: "pname", textContent: r.name }), el("span", { className: "pdetail", textContent: r.detail })),
+    saved(r) ? el("span", { className: "sched", textContent: "Added" })
+      : el("button", { type: "button", textContent: "Add", onclick: () => {
+        places.addPlace(r.name, r);
+        found = [];
+        goNext();
+      } }))));
+}
+$("#place-find").onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $("#place-search").value.trim();
+  found = [];
+  if (text.length < 3) { placeMsg("Type a little more of the name or address."); renderFound(); return; }
+  if (!geocoder || navigator.onLine === false) { placeMsg("Place search isn't available right now."); renderFound(); return; }
+  placeMsg("Searching…");
+  $("#place-find-go").disabled = true;
+  try {
+    found = await geocoder.search(text);
+    placeMsg(found.length ? "" : "No places found in the Wellington region. Try another name or address.");
+  } catch {
+    found = [];
+    placeMsg("Place search isn't available right now.");
+  } finally {
+    $("#place-find-go").disabled = false;
+  }
+  renderFound();
+};
 
 const scenariosReady = MODE !== "demo" ? null : readJson("config/profile.json").then((p) => {
   const ids = new Set(p.favourites.map((f) => f.id));
