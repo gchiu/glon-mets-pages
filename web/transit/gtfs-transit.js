@@ -1,10 +1,10 @@
 
-import { assembleCandidates, DEFAULT_LIMITS } from "./candidates.js";
+import { assembleCandidates } from "./candidates.js";
 import { metres } from "../gtfs/gtfs-index.js";
 
 const RAD = Math.PI / 180;
 
-function simplify(points, tolM, keep) {
+export function simplify(points, tolM, keep) {
   const k0 = points[0][0] * RAD, xy = points.map(([la, lo]) => [lo * RAD * Math.cos(k0) * 6371000, la * RAD * 6371000]);
   const out = new Uint8Array(points.length);
   out[0] = out[points.length - 1] = 1;
@@ -26,14 +26,10 @@ function simplify(points, tolM, keep) {
   return points.filter((_, i) => out[i]);
 }
 
-export const MAX_PATTERN_POINTS = 400;
-
 export class GtfsTransitProvider {
-  constructor({ index, realtime = null, simplifyM = 2, maxPoints = MAX_PATTERN_POINTS, limits = DEFAULT_LIMITS }) {
+  constructor({ index, realtime = null, simplifyM = 2 }) {
     this.index = index;
     this.simplifyM = simplifyM;
-    this.maxPoints = maxPoints;
-    this.limits = limits;
     this.tripIds = [...index.trips.keys()].sort();
     this.tripNoOf = new Map(this.tripIds.map((id, i) => [id, i]));
     this.patIds = [...index.patterns.keys()];
@@ -43,22 +39,22 @@ export class GtfsTransitProvider {
     this.live = true;
     this.last = -1;
     this.patternCache = new Map();
+    this.vertexCache = new Map();
   }
 
   candidates(query) {
-    const set = assembleCandidates(this.index, { ...query, limits: this.limits });
+    const set = assembleCandidates(this.index, query);
     for (const t of set.trips) { t.tripNo = this.tripNoOf.get(t.tripId); t.patNo = this.patNoOf.get(t.patternId); }
     return set;
   }
 
-  pattern(patNo) {
-    if (this.patternCache.has(patNo)) return this.patternCache.get(patNo);
+  stopVertices(patNo) {
+    if (this.vertexCache.has(patNo)) return this.vertexCache.get(patNo);
     const p = this.index.patterns.get(this.patIds[patNo]);
     const shape = this.index.shape(p.shapeId);
     const sample = this.index.tripTimes.get(p.trips[0]);
     let from = 0;
-    const keep = [];
-    const stops = sample.map((row) => {
+    const keep = sample.map((row) => {
       const s = this.index.stops.get(row.stopId);
       let bi = from, bd = Infinity;
       for (let i = from; i < shape.length; i++) {
@@ -67,12 +63,23 @@ export class GtfsTransitProvider {
         if (d < 0.5) break;
       }
       from = bi;
-      keep.push(bi);
-      return { stopId: row.stopId, name: s.stop_name, lat: s.lat, lon: s.lon, dist_m: shape[bi][2], seq: row.seq };
+      return bi;
     });
-    let tol = this.simplifyM, points = simplify(shape, tol, keep);
-    while (points.length > this.maxPoints && tol < 50) { tol *= 1.25; points = simplify(shape, tol, keep); }
-    points = points.map(([la, lo, d]) => [la, lo, d]);
+    this.vertexCache.set(patNo, keep);
+    return keep;
+  }
+
+  pattern(patNo) {
+    if (this.patternCache.has(patNo)) return this.patternCache.get(patNo);
+    const p = this.index.patterns.get(this.patIds[patNo]);
+    const shape = this.index.shape(p.shapeId);
+    const sample = this.index.tripTimes.get(p.trips[0]);
+    const keep = this.stopVertices(patNo);
+    const stops = sample.map((row, k) => {
+      const s = this.index.stops.get(row.stopId);
+      return { stopId: row.stopId, name: s.stop_name, lat: s.lat, lon: s.lon, dist_m: shape[keep[k]][2], seq: row.seq };
+    });
+    const points = simplify(shape, this.simplifyM, keep).map(([la, lo, d]) => [la, lo, d]);
     const route = this.index.routes.get(p.routeId) || {};
     const out = { patNo, name: route.route_short_name || p.routeId, headsign: p.headsign, points, stops };
     this.patternCache.set(patNo, out);

@@ -1,4 +1,4 @@
-const VERSION = "dd-u1-sw6";
+const VERSION = "dd-routes-sw1";
 const OWN = (k) => k.startsWith("dd-");
 const SHELL = [
   "./", "index.html", "manifest.webmanifest",
@@ -6,14 +6,12 @@ const SHELL = [
   "web/geo.js", "web/clock.js", "web/journey-host.js", "web/view-model.js", "web/ui.js", "web/effects.js",
   "web/location/location-providers.js", "web/transit/gtfs-transit.js", "web/transit/candidates.js",
   "web/transit/metlink-realtime.js", "web/realtime-settings.js", "web/transit/active-trip.js", "web/transit/route-measure.js",
-  "web/gtfs/gtfs-index.js", "web/startup.js", "web/places.js", "web/geocoder.js", "config/landmarks.json",
+  "web/gtfs/gtfs-index.js", "web/gtfs/network.js", "web/network-store.js", "web/startup.js", "web/places.js", "web/geocoder.js", "config/landmarks.json",
   "web/sim/journey-sim.js", "web/sim/scenarios.js",
   "vendor/glon/glon-kaka.wasm", "vendor/glon/prelude.glon", "vendor/glon/strings.glon", "vendor/glon/kaka-lib-subset.glon",
-  "glon/dd-support.glon", "glon/route-match.glon", "glon/fare.glon", "glon/journey.glon", "glon/candidates.glon", "glon/view.glon", "glon/app.glon",
+  "glon/dd-support.glon", "glon/route-match.glon", "glon/fare.glon", "glon/journey.glon", "glon/candidates.glon", "glon/choice.glon", "glon/view.glon", "glon/app.glon",
   "config/profile.json", "config/region.json", "config/journey-config.glon", "config/fare-policy.metlink.glon", "config/fare-policy.demo.glon",
   "fixtures/route21/realtime.json",
-  ...["feed_info", "routes", "trips", "stop_times", "stops", "shapes", "calendar", "calendar_dates"]
-    .map((f) => "fixtures/gtfs-wellington/" + f + ".txt"),
 ];
 
 self.addEventListener("install", (e) => {
@@ -40,6 +38,7 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== self.location.origin) return;   // never cache third-party APIs
   if (url.pathname.endsWith("/config/api-key.txt")) return;                         // the local realtime key: never cached
+  if (url.pathname.includes("/network/")) return;                                    // route data: the app's own cache (web/network-store.js)
   e.respondWith((async () => {
     try {
       const res = await fetch(e.request, { cache: "no-store" });

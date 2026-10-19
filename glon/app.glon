@@ -12,7 +12,8 @@ events: [
         j-now: ev 0  j-date: ev 1  j-wday: ev 2
         time-update
         render ]]
-    ['rt-lost [ rt-ok: 0  cq-rt-off cq-cl 6 5 0 - cn 3 1  cq-rt-off cq-tr 8 6 0 - cn 2 1  time-update  render ]]
+    ['rt-lost [ rt-ok: 0  cq-rt-off cq-cl 7 6 0 - cn 3 1  cq-rt-off cq-tr 8 6 0 - cn 2 1
+        cq-rt-off cq-alt 17 13 0 - cn 12 1  cq-rt-off cq-alt 17 15 0 - cn 12 1  time-update  render ]]
     ['choose [ ev-parse current-value  choose ev 0  render ]]
     ['pax [ ev-parse current-value
         pf-conc: either < ev 0 block-len fare-types [ block-at fare-types ev 0 ] [ block-at fare-types 0 ]
@@ -27,14 +28,30 @@ events: [
     ['where-close [ j-where: 0  render ]]
     ['cancel [ reset-journey  render ]]
     ['done [ reset-journey  render ]]
-    ['cq-begin [ ev-parse current-value  cq-reset ev 0 ev 1  render ]]
-    ['cq-stop [ ev-parse current-value  cq-add cq-st 0 2 3 40  render ]]
-    ['cq-dst [ ev-parse current-value  cq-add cq-ds 1 2 3 24  render ]]
-    ['cq-trip [ ev-parse current-value  cq-add cq-tr 2 5 8 24  render ]]
-    ['cq-call [ ev-parse current-value  cq-add cq-cl 3 4 6 64  render ]]
-    ['cq-arr [ ev-parse current-value  cq-add cq-ar 4 3 3 48  render ]]
-    ['cq-end [ ev-parse current-value  either = ev 0 cn 5 [ block-set! cq-n 6 1  on-candidates ] [ none ]  render ]]
-    ['cq-rt [ ev-parse current-value  cq-rt ev 0 ev 1 ev 2  render ]]
+    ['cq-page [ ev-parse current-value
+        either = ev 1 0 [ cq-fill cq-n 0 16 0  block-set! cq-n 5 ev 0  cq-fill cq-best 0 4 -1 ] [ cq-fill cq-n 0 5 0 ]
+        e-clear e-finish ]]
+    ['cq-stop [ cq-rows current-value cq-st 0 4 40  e-clear e-finish ]]
+    ['cq-dst [ cq-rows current-value cq-ds 1 3 24  e-clear e-finish ]]
+    ['cq-trip [ cq-rows current-value cq-tr 2 8 24  e-clear e-finish ]]
+    ['cq-call [ cq-rows current-value cq-cl 3 7 64  e-clear e-finish ]]
+    ['cq-arr [ cq-rows current-value cq-ar 4 4 48  e-clear e-finish ]]
+    ['cq-prt [ ev-parse current-value  cq-rt ev 0 ev 1 ev 2 1  e-clear e-finish ]]
+    ['cq-page-end [ ev-parse current-value
+        either = ev 0 cn 5 [
+            block-set! cq-n 8 + cn 8 1  block-set! cq-n 9 + cn 9 cn 0  block-set! cq-n 10 + cn 10 cn 1
+            block-set! cq-n 11 + cn 11 cn 2  block-set! cq-n 13 + cn 13 cn 3  block-set! cq-n 14 + cn 14 cn 4
+            either ev 3 [ block-set! cq-n 7 1 ] [ none ]
+            either > cn 3 0 [
+                cs-prep
+                either > cn 0 0 [ cs-walk cq-st 0 - cn 0 1 f-x f-y 0 ] [ none ]
+                either > cn 1 0 [ cs-walk cq-ds 0 - cn 1 1 j-dx j-dy 1 ] [ none ]
+                pg-offer 0 - cn 3 1
+            ] [ none ]
+            either ev 2 [ block-set! cq-n 6 1  on-candidates ] [ none ]
+        ] [ none ]
+        either ev 2 [ render ] [ e-clear e-finish ] ]]
+    ['cq-rt [ ev-parse current-value  cq-rt ev 0 ev 1 ev 2 0  render ]]
     ['cq-rt-end [ ev-parse current-value  rt-ok: 1  rt-t: ev 0  cs-resel  time-update  render ]]
     ['cq-score [ cs-score  render ]]
     ['jw [ ev-parse current-value  jw-put ev 0 ev 1 ev 2 ev 3 ev 4  render ]]

@@ -2,7 +2,42 @@
 clampv: func [v] [ either > v 8000 [ 8000 ] [ either < v -8000 [ -8000 ] [ v ] ] ]
 sq: func [v] [ * v v ]
 d2: func [ax ay bx by] [ + sq clampv - ax bx sq clampv - ay by ]
-dist: func [ax ay bx by] [ isq d2 ax ay bx by ]
+dist: masm 4 [
+    LIT 16 DIV LIT SCRATCH_A !
+    LIT 16 DIV LIT SCRATCH_B !
+    LIT 16 DIV LIT SCRATCH_C !
+    LIT 16 DIV LIT SCRATCH_B @ SUB LIT SCRATCH_F !
+    LIT SCRATCH_F @ LIT 8000 GT ZBRANCH s-cat-loop
+    LIT 8000 LIT SCRATCH_F !
+  s-cat-loop:
+    LIT SCRATCH_F @ LIT -8000 LT ZBRANCH s-cat-done
+    LIT -8000 LIT SCRATCH_F !
+  s-cat-done:
+    LIT SCRATCH_F @ DUP MUL LIT SCRATCH_D !
+    LIT SCRATCH_C @ LIT SCRATCH_A @ SUB LIT SCRATCH_F !
+    LIT SCRATCH_F @ LIT 8000 GT ZBRANCH s-cat-next
+    LIT 8000 LIT SCRATCH_F !
+  s-cat-next:
+    LIT SCRATCH_F @ LIT -8000 LT ZBRANCH s-cat-pass
+    LIT -8000 LIT SCRATCH_F !
+  s-cat-pass:
+    LIT SCRATCH_F @ DUP MUL LIT SCRATCH_D @ ADD LIT SCRATCH_A !
+    LIT SCRATCH_A @ LIT SCRATCH_B !
+    LIT SCRATCH_A @ LIT 2 LT ZBRANCH nb-loop
+    BRANCH mk-done
+  nb-loop:
+    LIT SCRATCH_A @ LIT 11586 LT ZBRANCH nb-done
+    BRANCH mk-loop
+  nb-done:
+    LIT 11586 LIT SCRATCH_B !
+  mk-loop:
+    LIT SCRATCH_B @ LIT SCRATCH_A @ LIT SCRATCH_B @ DIV ADD LIT 2 DIV LIT SCRATCH_C !
+    LIT SCRATCH_C @ LIT SCRATCH_B @ LT ZBRANCH mk-done
+    LIT SCRATCH_C @ LIT SCRATCH_B !
+    BRANCH mk-loop
+  mk-done:
+    LIT SCRATCH_B @ LIT 16 MUL ARITY 1 EXIT
+]
 jt-n: 0
 jw: new-block 35
 jw-clear: func [i] [ either < i 7 [ block-set! jw * 5 i -1  jw-clear + i 1 ] [ none ] ]

@@ -11,7 +11,7 @@ const ints = (s) => s.trim().split(/\s+/).filter(Boolean).map(Number);
 
 export function readState(script) {
   const st = { acts: [], option: null, bus: null, destWalk: null, strip: null, fareReason: null, route: null, head: null,
-    candidate: null, request: null, activate: null, window: null, measure: null, realtime: null };
+    candidate: null, retained: null, request: null, activate: null, window: null, measure: null, realtime: null };
   for (const line of script.split("\n")) {
     if (!line) continue;
     const op = line[0], rest = line.slice(1);
@@ -36,11 +36,14 @@ export function readState(script) {
     } else if (op === "F") {
       st.fareReason = rest.trim();
     } else if (op === "C") {
-      const [gen, call, arr, cost, stops, dsts, trips, calls, arrs, truncated] = ints(rest);
-      st.candidate = { gen, call, arr, cost, counts: { stops, dsts, trips, calls, arrs }, truncated };
+      const [gen, call, arr, cost, stops, dsts, trips, calls, arrs, truncated, pages = 1, retained = 0] = ints(rest);
+      st.candidate = { gen, call, arr, cost, counts: { stops, dsts, trips, calls, arrs }, truncated, pages, retained };
+    } else if (op === "R") {
+      const [gen, n, ...v] = ints(rest);
+      st.retained = { gen, alts: Array.from({ length: n }, (_, i) => ({ trip: v[3 * i], bseq: v[3 * i + 1], secs: v[3 * i + 2] })) };
     } else if (op === "Q") {
-      const [gen, radiusO, radiusD, horizon, ox, oy, dx, dy] = ints(rest);
-      st.request = { gen, radiusO, radiusD, horizon, ox, oy, dx, dy };
+      const [gen, radiusO, radiusD, horizon, ox, oy, dx, dy, k, c, a, reach] = ints(rest);
+      st.request = { gen, radiusO, radiusD, horizon, ox, oy, dx, dy, k, c, a, reach };
     } else if (op === "A") {
       const [trip, bseq, aseq] = ints(rest);
       st.activate = { trip, bseq, aseq };

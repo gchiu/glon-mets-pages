@@ -1,42 +1,105 @@
 [
-s/byte-at: masm 2 [
-    LIT SCRATCH_B !
-    LIT T_STRING SUB LIT 1 ADD LIT SCRATCH_B @ LIT 16 DIV ADD @
-    LIT 16 MUL ARITY 1 EXIT
+ev-scan: masm 3 [
+    LIT SCRATCH_D !
+    DUP LIT 16 MOD SUB LIT SCRATCH_B !
+    LIT T_STRING SUB
+    DUP LIT 1 ADD LIT SCRATCH_C !
+    DUP @ ADD LIT 1 ADD LIT SCRATCH_F !
+    LIT SCRATCH_D @ LIT 16 DIV >R
+    LIT 0 LIT SCRATCH_D !  LIT 0 LIT SCRATCH_A !
+  mk-loop:
+    LIT SCRATCH_C @ LIT SCRATCH_F @ LE ZBRANCH mk-done
+    LIT 32 LIT SCRATCH_C @ LIT SCRATCH_F @ LT ZBRANCH nb-loop
+    DROP LIT SCRATCH_C @ @
+  nb-loop:
+    DUP LIT 48 GE ZBRANCH s-cat-loop
+    DUP LIT 57 LE ZBRANCH s-cat-loop
+    LIT 48 SUB LIT SCRATCH_D @ LIT 10 MUL ADD LIT SCRATCH_D !
+    LIT SCRATCH_A @ ZBRANCH nb-done
+    BRANCH s-eq-loop
+  nb-done:
+    LIT 1 LIT SCRATCH_A !
+    BRANCH s-eq-loop
+  s-cat-loop:
+    LIT SCRATCH_A @ ZBRANCH s-cat-next
+    LIT SCRATCH_D @ LIT SCRATCH_A @ MUL LIT 16 MUL LIT SCRATCH_D !
+    R> DUP LIT SCRATCH_B @ @ LT ZBRANCH s-cat-done
+    DUP LIT SCRATCH_B @ ADD LIT 2 ADD >R
+    LIT SCRATCH_D @ R> !
+  s-cat-done:
+    LIT 1 ADD >R
+  s-cat-next:
+    LIT 0 LIT SCRATCH_D !
+    LIT 45 EQ ZBRANCH s-cat-pass
+    LIT -1 LIT SCRATCH_A !
+    BRANCH s-eq-loop
+  s-cat-pass:
+    LIT 0 LIT SCRATCH_A !
+  s-eq-loop:
+    LIT SCRATCH_C @ LIT 1 ADD LIT SCRATCH_C !
+    BRANCH mk-loop
+  mk-done:
+    R> LIT 16 MUL ARITY 1 EXIT
+]
+ev-pack: masm 3 [
+    LIT SCRATCH_D !
+    DUP LIT 16 MOD SUB LIT SCRATCH_B !
+    LIT T_STRING SUB
+    DUP LIT 1 ADD LIT SCRATCH_C !
+    DUP @ ADD LIT 1 ADD LIT SCRATCH_F !
+    LIT SCRATCH_D @ LIT 16 DIV >R
+    LIT 0 LIT SCRATCH_D !  LIT 1 LIT SCRATCH_A !
+  mk-loop:
+    LIT SCRATCH_C @ LIT SCRATCH_F @ LT ZBRANCH mk-done
+    LIT SCRATCH_C @ @
+    DUP LIT 33 EQ ZBRANCH nb-loop
+    DROP LIT -1 LIT SCRATCH_A !
+    BRANCH s-cat-done
+  nb-loop:
+    DUP LIT 35 LT ZBRANCH s-cat-next
+    DROP BRANCH s-cat-done
+  s-cat-next:
+    DUP LIT 80 LT ZBRANCH nb-done
+    LIT 35 SUB LIT SCRATCH_D @ LIT 45 MUL ADD LIT SCRATCH_D !
+    BRANCH s-cat-done
+  nb-done:
+    LIT 80 SUB LIT SCRATCH_D @ LIT 45 MUL ADD LIT SCRATCH_A @ MUL LIT 16 MUL LIT SCRATCH_D !
+    R> DUP LIT SCRATCH_B @ @ LT ZBRANCH s-cat-loop
+    DUP LIT SCRATCH_B @ ADD LIT 2 ADD >R
+    LIT SCRATCH_D @ R> !
+  s-cat-loop:
+    LIT 1 ADD >R
+    LIT 0 LIT SCRATCH_D !  LIT 1 LIT SCRATCH_A !
+  s-cat-done:
+    LIT SCRATCH_C @ LIT 1 ADD LIT SCRATCH_C !
+    BRANCH mk-loop
+  mk-done:
+    R> LIT 16 MUL ARITY 1 EXIT
 ]
 ev-ints: new-block 8
 ev-k: 0
 ev: func [k] [ block-at ev-ints k ]
 ev-parse: func [s] [
-    ev-k: 0
-    n: s/length s
-    either > n 48 [ n: 48 ] [ none ]
-    ev-go s 0 n 0 0 0
+    ev-k: ev-scan s ev-ints 0
+    either > ev-k 8 [ ev-k: 8 ] [ none ]
     ev-k
 ]
-ev-go: func [s i n acc neg inn] [
-    either < i n [
-        b: s/byte-at s i
-        either = b 45 [ ev-flush acc neg inn  ev-go s + i 1 n 0 1 1 ] [
-            either >= b 48 [
-                either <= b 57 [ ev-go s + i 1 n + * acc 10 - b 48 neg 1 ] [
-                    ev-flush acc neg inn  ev-go s + i 1 n 0 0 0
-                ]
-            ] [ ev-flush acc neg inn  ev-go s + i 1 n 0 0 0 ]
-        ]
-    ] [ ev-flush acc neg inn ]
-]
-ev-flush: func [acc neg inn] [
-    either inn [
-        either < ev-k 8 [
-            block-set! ev-ints ev-k either neg [ - 0 acc ] [ acc ]
-            ev-k: + ev-k 1
-        ] [ none ]
-    ] [ none ]
-]
-isq: func [n] [ either < n 2 [ n ] [ isq-it n either < n 11586 [ n ] [ 11586 ] ] ]
-isq-it: func [n x] [
-    y: / + x / n x 2
-    either < y x [ isq-it n y ] [ x ]
+isq: masm 1 [
+    LIT 16 DIV LIT SCRATCH_A !
+    LIT SCRATCH_A @ LIT SCRATCH_B !
+    LIT SCRATCH_A @ LIT 2 LT ZBRANCH nb-loop
+    BRANCH mk-done
+  nb-loop:
+    LIT SCRATCH_A @ LIT 11586 LT ZBRANCH nb-done
+    BRANCH mk-loop
+  nb-done:
+    LIT 11586 LIT SCRATCH_B !
+  mk-loop:
+    LIT SCRATCH_B @ LIT SCRATCH_A @ LIT SCRATCH_B @ DIV ADD LIT 2 DIV LIT SCRATCH_C !
+    LIT SCRATCH_C @ LIT SCRATCH_B @ LT ZBRANCH mk-done
+    LIT SCRATCH_C @ LIT SCRATCH_B !
+    BRANCH mk-loop
+  mk-done:
+    LIT SCRATCH_B @ LIT 16 MUL ARITY 1 EXIT
 ]
 ]

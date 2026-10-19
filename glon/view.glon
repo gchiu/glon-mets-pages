@@ -73,7 +73,7 @@ v-bus-option: func [] [
         fv j-trip  fv eta  fv board-time  fv live-now  fv leave-s
     ]
     fv walk-s wm  fv wm  fv fare-code  fv fare-ri  fv j-board  fv j-alight
-    fv either live-now [ cq-d block-at cq-best 3 ] [ 0 ]
+    fv either live-now [ alt-d block-at cq-best 3 ] [ 0 ]
     op 10
     either < fare-ri 0 [ none ] [ op 70 op 32 e-text block-at fare-reasons fare-ri op 10 ]
 ]
@@ -85,11 +85,14 @@ v-on-bus: func [] [
     v-strip
 ]
 v-cand: func [] [
+    b: block-at cq-best 0
     op 67 fv cn 5
-    fv block-at cq-best 0  fv block-at cq-best 1  fv block-at cq-best 2
-    fv cn 0 fv cn 1 fv cn 2 fv cn 3 fv cn 4 fv cn 7
+    fv either < b 0 [ -1 ] [ al b 10 ]  fv block-at cq-best 1  fv block-at cq-best 2
+    fv cn 9 fv cn 10 fv cn 11 fv cn 13 fv cn 14 fv cn 7 fv cn 8 fv cn 12
     op 10
+    op 82 fv cn 5 fv cn 12  v-alts 0 cn 12  op 10
 ]
+v-alts: func [i n] [ either < i n [ fv al i 1 fv al i 2 fv al i 3  v-alts + i 1 n ] [ none ] ]
 render: func [] [
     e-clear
     st: j-st
@@ -104,7 +107,8 @@ render: func [] [
     either = st 'WALKING_TO_STOP [ v-bus-option ] [
     either = st 'WAITING_FOR_BUS [ v-bus-option ] [ none ] ] ] ] ]
     either = cn 6 1 [ v-cand ] [ none ]
-    either = j-q 1 [ op 81 fv j-qgen fv j-rad fv j-rad fv c 'horizon-s fv f-x fv f-y fv j-dx fv j-dy op 10 ] [ none ]
+    either = j-q 1 [ op 81 fv j-qgen fv j-rad fv j-rad fv c 'horizon-s fv f-x fv f-y fv j-dx fv j-dy
+        fv c 'cand-k fv c 'cand-c fv c 'cand-a fv pf 'walk-cms op 10 ] [ none ]
     either = j-g 1 [ op 65 fv j-trip fv j-bseq fv j-aseq op 10 ] [ none ]
     either either = j-g 0 [ >= j-board 0 ] [ 0 ] [
         op 87 fv jw-base fv j-board fv j-alight op 10

@@ -47,13 +47,6 @@ j-lnow: 0
 c: func [k] [ block-at select cfg k 1 ]
 pf: func [k] [ block-at select prefs k 1 ]
 rt-live: func [] [ either rt-ok [ <= - j-now rt-t c 'rt-stale-s ] [ 0 ] ]
-live-now: func [] [
-    k: block-at cq-best 3
-    either < k 0 [ 0 ] [ either = tr cl k 0 4 j-trip [
-        either rt-fresh cl k 5 [ 1 ] [ rt-fresh tr cl k 0 6 ]
-    ] [ 0 ] ]
-]
-board-time: func [] [ + sv j-board 1 either live-now [ cq-d block-at cq-best 3 ] [ 0 ] ]
 eta: func [] [ - board-time j-now ]
 walk-s: func [d] [ / * d 100 pf 'walk-cms ]
 f-bm: 0
@@ -81,61 +74,6 @@ walk-only: func [] [
     j-st: 'JOURNEY_PROPOSED
     j-leave: 'WALK
     fare-eval j-now j-date j-wday
-]
-on-candidates: func [] [
-    either = j-q 1 [
-        either = cn 5 j-qgen [
-            j-q: 2
-            cs-score
-            bc: block-at cq-best 0
-            either < bc 0 [
-                either < j-rad c 'search-max-m [
-                    j-rad: * j-rad 2
-                    ask-candidates
-                ] [
-                    j-opt: -1
-                    either = j-st 'DESTINATION_SELECTED [ j-st: 'JOURNEY_PROPOSED ] [ none ]
-                    j-leave: 'MISSED
-                ]
-            ] [
-                ba: block-at cq-best 1
-                either <= to-dest-m + cst cl bc 1 2 cds ar ba 0 2 [
-                    either = j-st 'DESTINATION_SELECTED [ walk-only ] [ none ]
-                ] [ cs-take bc ba ]
-            ]
-        ] [ none ]
-    ] [ none ]
-]
-cs-take: func [bc ba] [
-    t: cl bc 0
-    j-trip: tr t 4
-    j-bseq: cl bc 2
-    j-aseq: ar ba 1
-    j-g: 1
-    block-set! cq-best 3 bc
-    jw-clear 0
-]
-cs-resel: func [] [
-    k: block-at cq-best 3
-    st: j-st
-    ok: either < k 0 [ 0 ] [ either = j-q 2 [ either j-g [ 0 ] [ either j-walk [ 0 ] [
-        either = st 'JOURNEY_PROPOSED [ 1 ] [ either = st 'WALKING_TO_STOP [ 1 ] [ = st 'WAITING_FOR_BUS ] ]
-    ] ] ] [ 0 ] ]
-    either ok [
-        cs-score
-        bc: block-at cq-best 0
-        either either < bc 0 [ 0 ] [ either = bc k [ 0 ] [ 1 ] ] [
-            bv: block-at cq-best 2
-            ba: block-at cq-best 1
-            t: cl k 0
-            ai: either < tr t 3 tr t 2 [ -1 ] [ cs-best-arr k tr t 2 tr t 3 ]
-            either either < ai 0 [ 1 ] [ < + bv c 'rt-switch-cost cs-v ] [
-                either = st 'WAITING_FOR_BUS [ either = cl bc 1 cl k 1 [ none ] [ j-st: 'WALKING_TO_STOP ] ] [ none ]
-                j-note: 6
-                cs-take bc ba
-            ] [ none ]
-        ] [ none ]
-    ] [ none ]
 ]
 on-trip-ready: func [no bk ak n] [
     either = j-g 1 [

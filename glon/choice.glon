@@ -1,0 +1,177 @@
+[
+cs-walk: func [tb a b x y e] [
+    either >= a b [
+        either e [
+            block-set! tb + * 3 a 2 cs-eg dist x y block-at tb * 3 a block-at tb + * 3 a 1
+        ] [
+            am: dist x y block-at tb * 4 a block-at tb + * 4 a 1
+            block-set! tb + * 4 a 2 / * am 100 block-at cs-w 10
+            block-set! tb + * 4 a 3 wc am
+        ]
+    ] [
+        m: / + a b 2
+        cs-walk tb a m x y e
+        cs-walk tb + m 1 b x y e
+    ]
+]
+cs-w: new-block 14
+cs-prep: func [] [
+    block-set! cs-w 0 pf 'walk-mult
+    block-set! cs-w 1 pf 'walk-comfort-m
+    block-set! cs-w 2 pf 'walk-steep-mult
+    block-set! cs-w 3 pf 'walk-tolerance-m
+    block-set! cs-w 4 pf 'walk-over-mult
+    block-set! cs-w 5 pf 'walk-max-m
+    block-set! cs-w 6 pf 'wait-mult
+    block-set! cs-w 7 pf 'ivt-mult
+    block-set! cs-w 8 pf 'arrive-mult
+    block-set! cs-w 9 pf 'buffer-s
+    block-set! cs-w 10 pf 'walk-cms
+    block-set! cs-w 11 either = j-st 'WALKING_TO_STOP [ 1 ] [ either = j-st 'WAITING_FOR_BUS [ 1 ] [ 0 ] ]
+    block-set! cs-w 12 + block-at cs-w 7 block-at cs-w 8
+    block-set! cs-w 13 c 'cand-keep
+]
+wc: func [m] [
+    cm: block-at cs-w 1
+    tl: block-at cs-w 3
+    eq: either > m cm [
+        either > m tl [
+            + + cm * - tl cm block-at cs-w 2 * - m tl block-at cs-w 4
+        ] [ + cm * - m cm block-at cs-w 2 ]
+    ] [ m ]
+    + either > m block-at cs-w 5 [ 1000000 ] [ 0 ]  * block-at cs-w 0 / * eq 100 block-at cs-w 10
+]
+cs-ok: 0
+cs-c: func [am bs d em as] [
+    cs-ok: 0
+    wo: / * am 100 block-at cs-w 10
+    et: - + bs d j-now
+    either < et wo [ 0 ] [
+        cs-ok: 1
+        sl: - et wo
+        pw: either block-at cs-w 11 [ sl ] [ either < sl block-at cs-w 9 [ sl ] [ block-at cs-w 9 ] ]
+        + + + + wc am  wc em
+            * block-at cs-w 6 pw
+            * block-at cs-w 7 - as bs
+            * block-at cs-w 8 + - + as d j-now  / * em 100 block-at cs-w 10
+    ]
+]
+cs-eg: func [em] [ + wc em * block-at cs-w 8 / * em 100 block-at cs-w 10 ]
+cs-k: func [c] [
+    cs-ok: 0
+    ca: * 7 c
+    sa: * 4 block-at cq-cl + ca 1
+    bs: block-at cq-cl + ca 3
+    d: either = 0 + block-at cq-cl + ca 6 block-at cq-tr + * 8 block-at cq-cl ca 6 [ 0 ] [ cq-d c ]
+    wo: block-at cq-st + sa 2
+    et: - + bs d j-now
+    either < et wo [ 0 ] [
+        cs-ok: 1
+        sl: - et wo
+        pw: either block-at cs-w 11 [ sl ] [ either < sl block-at cs-w 9 [ sl ] [ block-at cs-w 9 ] ]
+        + + + block-at cq-st + sa 3  * block-at cs-w 6 pw  - 0 * block-at cs-w 7 bs  * block-at cs-w 8 - d j-now
+    ]
+]
+cs-v: 0
+cs-best-arr: func [sq a b k] [
+    either >= a b [
+        aa: * 4 a
+        either > block-at cq-ar + aa 1 sq [
+            cs-v: + + k block-at cq-ds + * 3 block-at cq-ar aa 2  * block-at cs-w 12 block-at cq-ar + aa 2
+            a
+        ] [ -1 ]
+    ] [
+        m: / + a b 2
+        i: cs-best-arr sq a m k
+        vi: cs-v
+        j: cs-best-arr sq + m 1 b k
+        either < i 0 [ j ] [ either < j 0 [ cs-v: vi  i ] [ either < cs-v vi [ j ] [ cs-v: vi  i ] ] ]
+    ]
+]
+cs-score: func [] [
+    cq-fill cq-best 0 3 -1
+    either = cn 6 1 [
+        either > cn 12 0 [
+            cs-prep
+            b: al-best 0 - cn 12 1
+            either < b 0 [ none ] [
+                block-set! cq-best 0 b
+                block-set! cq-best 1 al b 11
+                block-set! cq-best 2 cs-v
+            ]
+        ] [ none ]
+    ] [ none ]
+]
+al-best: func [a b] [
+    either >= a b [
+        v: cs-c dist f-x f-y al a 4 al a 5  al a 3  alt-d a  dist j-dx j-dy al a 8 al a 9  al a 7
+        either cs-ok [ cs-v: v  a ] [ -1 ]
+    ] [
+        m: / + a b 2
+        i: al-best a m
+        vi: cs-v
+        j: al-best + m 1 b
+        either < i 0 [ j ] [ either < j 0 [ cs-v: vi  i ] [ either < cs-v vi [ j ] [ cs-v: vi  i ] ] ]
+    ]
+]
+on-candidates: func [] [
+    either = j-q 1 [
+        either = cn 5 j-qgen [
+            j-q: 2
+            cs-score
+            bc: block-at cq-best 0
+            either < bc 0 [
+                either < j-rad c 'search-max-m [
+                    j-rad: * j-rad 2
+                    ask-candidates
+                ] [
+                    j-opt: -1
+                    either = j-st 'DESTINATION_SELECTED [ j-st: 'JOURNEY_PROPOSED ] [ none ]
+                    j-leave: 'MISSED
+                ]
+            ] [
+                either <= to-dest-m + dist f-x f-y al bc 4 al bc 5  dist j-dx j-dy al bc 8 al bc 9 [
+                    either = j-st 'DESTINATION_SELECTED [ walk-only ] [ none ]
+                ] [ cs-take bc ]
+            ]
+        ] [ none ]
+    ] [ none ]
+]
+cs-take: func [bc] [
+    j-trip: al bc 1
+    j-bseq: al bc 2
+    j-aseq: al bc 6
+    j-g: 1
+    block-set! cq-best 3 bc
+    jw-clear 0
+]
+cs-resel: func [] [
+    k: block-at cq-best 3
+    st: j-st
+    ok: either < k 0 [ 0 ] [ either = j-q 2 [ either j-g [ 0 ] [ either j-walk [ 0 ] [
+        either = st 'JOURNEY_PROPOSED [ 1 ] [ either = st 'WALKING_TO_STOP [ 1 ] [ = st 'WAITING_FOR_BUS ] ]
+    ] ] ] [ 0 ] ]
+    either ok [
+        cs-score
+        bc: block-at cq-best 0
+        either either < bc 0 [ 0 ] [ either = bc k [ 0 ] [ 1 ] ] [
+            bv: block-at cq-best 2
+            kv: cs-c dist f-x f-y al k 4 al k 5  al k 3  alt-d k  dist j-dx j-dy al k 8 al k 9  al k 7
+            either either cs-ok [ < + bv c 'rt-switch-cost kv ] [ 1 ] [
+                either = st 'WAITING_FOR_BUS [
+                    either either = al bc 4 al k 4 [ = al bc 5 al k 5 ] [ 0 ] [ none ] [ j-st: 'WALKING_TO_STOP ]
+                ] [ none ]
+                j-note: 6
+                cs-take bc
+            ] [ none ]
+        ] [ none ]
+    ] [ none ]
+]
+live-now: func [] [
+    k: block-at cq-best 3
+    either < k 0 [ 0 ] [ either = al k 1 j-trip [
+        either rt-fresh al k 13 [ 1 ] [ rt-fresh al k 15 ]
+    ] [ 0 ] ]
+]
+board-time: func [] [ + sv j-board 1 either live-now [ alt-d block-at cq-best 3 ] [ 0 ] ]
+]

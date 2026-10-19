@@ -23,6 +23,16 @@
   <div id="vb" aria-live="polite"></div><div id="va"></div>
   <p id="status" class="status" role="status"></p>
 </main>
+<section id="setup-routes" class="places setup" hidden aria-label="Your routes">
+  <h1>Which routes do you use?</h1>
+  <p class="hint">Type the numbers of the bus or train routes you travel on, for example 2 21. Only their timetables are downloaded to this device. You can change them later in Settings.</p>
+  <form class="row" id="routes-form" autocomplete="off">
+    <input id="routes-input" autocomplete="off" inputmode="text" placeholder="For example 2 21" aria-label="Route numbers">
+    <button id="routes-go" type="submit">Download timetables</button>
+  </form>
+  <ul id="routes-found" class="plist"></ul>
+  <p id="routes-msg" role="status"></p>
+</section>
 <section id="setup-home" class="places setup" hidden aria-label="Set up Home">
   <h1 id="setup-home-title">Let's set up Home</h1>
   <p class="hint">Home is kept only on this device.</p>
@@ -54,6 +64,13 @@
   <button id="set-home" type="button" class="big">Change Home</button>
   <h2>My Places</h2>
   <button id="set-myplaces" type="button" class="big">My Places</button>
+  <h2>Routes</h2>
+  <p id="set-routes-now"></p>
+  <div id="routes-update" class="confirm" hidden>
+    <p id="routes-update-text" role="status"></p>
+    <button id="routes-update-go" type="button">Update timetables</button>
+  </div>
+  <button id="set-routes" type="button" class="big">My routes</button>
   <h2>Fare</h2>
   <p id="set-fare-now"></p>
   <button id="set-fare" type="button" class="big">Change fare type</button>
@@ -102,6 +119,19 @@
   </div>
   <p id="myplaces-msg" role="status"></p>
   <button id="myplaces-close" type="button" class="done">Done</button>
+</section>
+<section id="myroutes" class="places" hidden aria-label="My routes">
+  <h1>My routes</h1>
+  <p class="hint">Journeys are planned with these routes' timetables, kept on this device.</p>
+  <ul id="myroutes-list" class="plist manage"></ul>
+  <h2>Add a route</h2>
+  <form class="row" id="myroutes-form" autocomplete="off">
+    <input id="myroutes-input" autocomplete="off" placeholder="Route number" aria-label="Route number to add">
+    <button type="submit">Add</button>
+  </form>
+  <ul id="myroutes-found" class="plist"></ul>
+  <p id="myroutes-msg" role="status"></p>
+  <button id="myroutes-close" type="button" class="done">Done</button>
 </section>
 <details class="dev rt" id="rt-panel">
   <summary>Metlink realtime</summary>

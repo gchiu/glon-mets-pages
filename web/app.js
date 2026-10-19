@@ -3,7 +3,8 @@ import { bootJourneyApp } from "./boot.js";
 import { JourneyHost } from "./journey-host.js";
 import { renderView } from "./ui.js";
 import { PlatformEffects } from "./effects.js";
-import { GtfsIndex, GTFS_FILES } from "./gtfs/gtfs-index.js";
+import { resolveRoutes, routeChoices } from "./gtfs/network.js";
+import { NetworkStore } from "./network-store.js";
 import { GtfsTransitProvider } from "./transit/gtfs-transit.js";
 import { BrowserLocationProvider } from "./location/location-providers.js";
 import { SystemClock } from "./clock.js";
@@ -25,7 +26,11 @@ const effects = new PlatformEffects();
 let session = null;     // { host, poller, stop() }
 const keys = new RealtimeKeys({ onChange: onKeys });
 const realtimeReady = keys.init();
-let gtfsIndex = null;   // built once per page from the Route 21 GTFS subset
+let gtfsIndex = null;   // the planner's index: built from the installed route packages (web/network-store.js)
+const network = new NetworkStore();
+let latestCat = null;   // the newest catalogue seen (for choosing routes and update checks)
+let installedCat = null; // the catalogue the installed packages belong to
+const DEMO_ROUTES = "21 24";   // the routes the ?demo=1 simulations use
 const places = MODE === "passenger" ? new MyPlaces() : null;
 let cat = null;          // the landmark catalogue (config/landmarks.json)
 let chosenPlace = null;  // the one of My Places in Glon's slot 1, once chosen
@@ -63,8 +68,17 @@ async function start(mode) {
     chosenPlace = null;
   }
   if (!gtfsIndex) {
-    const texts = await Promise.all(GTFS_FILES.map((f) => readText("fixtures/gtfs-wellington/" + f)));
-    gtfsIndex = GtfsIndex.fromTexts(Object.fromEntries(GTFS_FILES.map((f, i) => [f, texts[i]])));
+    if (!latestCat) latestCat = (await network.latestCatalogue()).catalogue;
+    if (mode === "live") {
+      let loaded = null;
+      try { loaded = await network.loadIndex(); }
+      catch (err) { openRoutesSetup(); routesMsg("#routes-msg", err.message || String(err)); return; }   // never plan from a partial timetable
+      if (!loaded) { openRoutesSetup(); return; }        // first run: nothing to plan with until routes are chosen
+      gtfsIndex = loaded.index;
+      installedCat = loaded.catalogue;
+    } else {
+      gtfsIndex = await network.loadRoutes(latestCat, resolveRoutes(latestCat, DEMO_ROUTES).routes.map((r) => r.routeId));
+    }
   }
   const transit = new GtfsTransitProvider({ index: gtfsIndex, realtime: mode === "live" ? { updates: [] } : realtime });
   const farePolicy = mode === "live" ? "config/fare-policy.metlink.glon" : "config/fare-policy.demo.glon";
@@ -216,10 +230,82 @@ document.addEventListener("click", (e) => {
   else session.host.command(act);
 });
 
+const routeLabel = (c) => `${c.number} ${c.name}`;
+function installedRoutes() {
+  const cat = installedCat || latestCat, byId = new Map(cat ? routeChoices(cat).map((c) => [c.routeId, c]) : []);
+  return network.selection().routes.map((r) => byId.get(r.routeId) || { routeId: r.routeId, number: r.routeId, name: "" });
+}
+function installedRouteWords() {
+  const r = installedRoutes();
+  return r.length ? "Route" + (r.length > 1 ? "s " : " ") + r.map((c) => c.number).join(", ") : "No routes chosen yet";
+}
+function routesMsg(id, t) { $(id).textContent = t || ""; }
+function describeRoutes(text, listId, msgId) {
+  if (!latestCat) { routesMsg(msgId, "Still loading the route list…"); return null; }
+  const { routes, unknown } = resolveRoutes(latestCat, text);
+  $(listId).replaceChildren(...routes.map((c) => el("li", {}, el("span", { className: "pname", textContent: routeLabel(c) }))));
+  routesMsg(msgId, unknown.length ? `No route ${unknown.join(", ")} in the Metlink timetable.` : "");
+  return routes;
+}
+async function changeRoutes(action, msgId) {
+  routesMsg(msgId, "Downloading timetables…");
+  try { await action(); }
+  catch (err) { routesMsg(msgId, err.message || String(err)); return false; }
+  gtfsIndex = null;
+  installedCat = null;
+  await start("live");
+  return true;
+}
+function openRoutesSetup() {
+  $("#status").textContent = "";
+  $("#routes-input").value = ""; $("#routes-found").replaceChildren(); routesMsg("#routes-msg", "");
+  show("setup-routes");
+  $("#routes-input").focus();
+}
+$("#routes-input").oninput = () => describeRoutes($("#routes-input").value, "#routes-found", "#routes-msg");
+$("#routes-form").onsubmit = (e) => {
+  e.preventDefault();
+  const routes = describeRoutes($("#routes-input").value, "#routes-found", "#routes-msg");
+  if (!routes) return;
+  if (!routes.length) { routesMsg("#routes-msg", "Type the number of at least one route you use, for example 2."); return; }
+  $("#routes-go").disabled = true;
+  changeRoutes(() => network.install(routes.map((c) => c.routeId), latestCat), "#routes-msg")
+    .catch(showError).finally(() => { $("#routes-go").disabled = false; });
+};
+function openMyRoutes() {
+  routesMsg("#myroutes-msg", ""); $("#myroutes-input").value = ""; $("#myroutes-found").replaceChildren();
+  renderMyRoutes();
+  show("myroutes");
+}
+function renderMyRoutes() {
+  const list = installedRoutes();
+  $("#myroutes-list").replaceChildren(...list.map((c) => el("li", {}, el("span", { className: "pname", textContent: routeLabel(c) }),
+    el("button", { type: "button", textContent: "Remove", disabled: list.length < 2,
+      onclick: () => changeRoutes(() => network.remove(c.routeId), "#myroutes-msg").then((ok) => { if (ok) openMyRoutes(); }) }))));
+}
+$("#myroutes-input").oninput = () => describeRoutes($("#myroutes-input").value, "#myroutes-found", "#myroutes-msg");
+$("#myroutes-form").onsubmit = (e) => {
+  e.preventDefault();
+  const routes = describeRoutes($("#myroutes-input").value, "#myroutes-found", "#myroutes-msg");
+  if (!routes || !routes.length) return;
+  const status = network.updateStatus(latestCat);
+  const target = status.feedChanged ? latestCat : installedCat || latestCat;
+  changeRoutes(() => network.add(routes.map((c) => c.routeId), target), "#myroutes-msg").then((ok) => { if (ok) openMyRoutes(); });
+};
+$("#myroutes-close").onclick = () => openSettings();
+function showUpdate() {
+  const s = network.updateStatus(latestCat);
+  $("#routes-update").hidden = s.current;
+  if (!s.current) $("#routes-update-text").textContent = s.feedChanged
+    ? `A newer Metlink timetable is available (valid ${s.feed.start || "?"} to ${s.feed.end || "?"}).`
+    : `Newer timetables are available for route ${s.changed.join(", ")}.`;
+}
+$("#routes-update-go").onclick = () => changeRoutes(() => network.update(latestCat), "#routes-update-text").then((ok) => { if (ok) openSettings(); });
+
 const el = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); n.append(...kids); return n; };
 function repaintView() { if (session) paint(session.host.state, namesFor(session.host, session.profile)); }
 function placeMsg(t) { $("#place-msg").textContent = t || ""; }
-const SCREENS = ["view", "setup-home", "setup-fare", "places", "settings", "myplaces"];
+const SCREENS = ["view", "setup-routes", "setup-home", "setup-fare", "places", "settings", "myplaces", "myroutes"];
 function show(id) {
   for (const s of SCREENS) $("#" + s).hidden = s !== id;
   if (id === "view") repaintView();
@@ -287,11 +373,14 @@ function openSettings() {
   fromSettings = false;
   $("#set-fare-now").textContent = fare.type ? FARE_WORDS[fare.type] : "Not chosen yet";
   $("#set-home").textContent = places.home() ? "Change Home" : "Set up Home";
+  $("#set-routes-now").textContent = installedRouteWords();
+  showUpdate();
   show("settings");
 }
 $("#set-home").onclick = () => openHomeSetup(true);
 $("#set-myplaces").onclick = () => openMyPlaces();
 $("#set-fare").onclick = () => openFareSetup(true);
+$("#set-routes").onclick = () => openMyRoutes();
 $("#settings-close").onclick = () => goNext();
 
 function openPlaces() {

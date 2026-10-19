@@ -14,6 +14,7 @@ export const ENGINE = [
   "glon/fare.glon",
   "glon/journey.glon",
   "glon/candidates.glon",
+  "glon/choice.glon",
   "glon/view.glon",
   "glon/app.glon",
 ];

@@ -1,5 +1,5 @@
 
-import { RouteMeasurer, routePoints } from "./route-measure.js";
+import { RouteMeasurer, routePoints, subdivide } from "./route-measure.js";
 
 export const WINDOW_CONTIGUOUS = 5;      // base .. base+4: next-1 (ride remaining), next, and up to strip-max (4) - 1 beyond
 export const WINDOW_MAX_ROWS = WINDOW_CONTIGUOUS + 2;   // plus the pinned boarding and target rows
@@ -58,8 +58,8 @@ export class ActiveTrip {
 
   measure(req, fix) {
     if (!this.measurer) {
-      const pts = this.geometry === "glon" ? this.pattern.points : this.provider.rawShape(this.patNo);
-      this.measurer = new RouteMeasurer(routePoints(pts, this.proj));
+      const pts = this.geometry === "glon" ? routePoints(this.pattern.points, this.proj) : subdivide(routePoints(this.provider.rawShape(this.patNo), this.proj));
+      this.measurer = new RouteMeasurer(pts);
     }
     const w = this.projection(req, fix);
     const m = this.measurer.measure({ x: fix.x, y: fix.y, ...w });

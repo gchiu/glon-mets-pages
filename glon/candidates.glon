@@ -1,48 +1,62 @@
 [
-cq-st: new-block 120
+cq-st: new-block 160
 cq-ds: new-block 72
 cq-tr: new-block 192
-cq-cl: new-block 384
-cq-ar: new-block 144
-cq-n: new-block 8
+cq-cl: new-block 448
+cq-ar: new-block 192
+cq-n: new-block 16
 cq-best: new-block 4
+cq-alt: new-block 136
 cn: func [k] [ block-at cq-n k ]
-cl: func [i f] [ block-at cq-cl + * 6 i f ]
-ar: func [i f] [ block-at cq-ar + * 3 i f ]
+cl: func [i f] [ block-at cq-cl + * 7 i f ]
 tr: func [i f] [ block-at cq-tr + * 8 i f ]
-cst: func [i f] [ block-at cq-st + * 3 i f ]
-cds: func [i f] [ block-at cq-ds + * 3 i f ]
+al: func [i f] [ block-at cq-alt + * 17 i f ]
 cq-fill: func [b i n v] [ either < i n [ block-set! b i v  cq-fill b + i 1 n v ] [ none ] ]
-cq-reset: func [gen trunc] [
-    cq-fill cq-n 0 5 0
-    block-set! cq-n 5 gen
-    block-set! cq-n 6 0
-    block-set! cq-n 7 trunc
-    cq-fill cq-best 0 4 -1
-]
-cq-put: func [tb base i nf w] [
-    either < i w [
-        block-set! tb + base i either < i nf [ ev i ] [ 0 ]
-        cq-put tb base + i 1 nf w
-    ] [ none ]
-]
-cq-add: func [tb k nf w cap] [
+cq-rows: func [s tb k w cap] [
     n: cn k
-    either < n cap [ cq-put tb * n w 0 nf w  block-set! cq-n k + n 1 ] [ block-set! cq-n 7 1 ]
+    n: + n / - ev-pack s tb * n w * n w w
+    either > n cap [ block-set! cq-n k cap  block-set! cq-n 7 1 ] [ block-set! cq-n k n ]
 ]
-cq-rt: func [i d ob] [
-    either < i cn 3 [
-        t: cl i 0
-        either < ob 0 [
-            block-set! cq-cl + * 6 i 5 0
-            either = tr t 7 i [ block-set! cq-tr + * 8 t 6 0 ] [ none ]
-        ] [
-            block-set! cq-cl + * 6 i 4 d
-            block-set! cq-cl + * 6 i 5 + ob 1
-            block-set! cq-tr + * 8 t 5 d
-            block-set! cq-tr + * 8 t 6 + ob 1
-            block-set! cq-tr + * 8 t 7 i
-        ]
+cq-rt: func [i d ob pg] [
+    either pg [
+        either < i cn 3 [
+            t: cl i 0
+            either < ob 0 [
+                block-set! cq-cl + * 7 i 6 0
+                either = tr t 7 i [ block-set! cq-tr + * 8 t 6 0 ] [ none ]
+            ] [
+                block-set! cq-cl + * 7 i 5 d
+                block-set! cq-cl + * 7 i 6 + ob 1
+                block-set! cq-tr + * 8 t 5 d
+                block-set! cq-tr + * 8 t 6 + ob 1
+                block-set! cq-tr + * 8 t 7 i
+            ]
+        ] [ none ]
+    ] [
+        either < i cn 12 [
+            either < ob 0 [
+                block-set! cq-alt + * 17 i 13 0
+                al-trip al i 1 0 -1 i 0 cn 12
+            ] [
+                block-set! cq-alt + * 17 i 12 d
+                block-set! cq-alt + * 17 i 13 + ob 1
+                al-trip al i 1 d + ob 1 i 0 cn 12
+            ]
+        ] [ none ]
+    ]
+]
+al-trip: func [t d sn src i n] [
+    either < i n [
+        either = al i 1 t [
+            either < sn 0 [
+                either = al i 16 src [ block-set! cq-alt + * 17 i 15 0 ] [ none ]
+            ] [
+                block-set! cq-alt + * 17 i 14 d
+                block-set! cq-alt + * 17 i 15 sn
+                block-set! cq-alt + * 17 i 16 src
+            ]
+        ] [ none ]
+        al-trip t d sn src + i 1 n
     ] [ none ]
 ]
 cq-rt-off: func [tb w f a b] [
@@ -59,107 +73,76 @@ rt-fresh: func [sn] [
     ]
 ]
 cq-d: func [i] [
-    either rt-fresh cl i 5 [ cl i 4 ] [ either rt-fresh tr cl i 0 6 [ tr cl i 0 5 ] [ 0 ] ]
+    either rt-fresh cl i 6 [ cl i 5 ] [ either rt-fresh tr cl i 0 6 [ tr cl i 0 5 ] [ 0 ] ]
 ]
-cs-walk: func [tb a b x y] [
-    either >= a b [ block-set! tb + * 3 a 2 dist x y block-at tb * 3 a block-at tb + * 3 a 1 ] [
-        m: / + a b 2
-        cs-walk tb a m x y
-        cs-walk tb + m 1 b x y
-    ]
+alt-d: func [i] [
+    either rt-fresh al i 13 [ al i 12 ] [ either rt-fresh al i 15 [ al i 14 ] [ 0 ] ]
 ]
-cs-w: new-block 12
-cs-prep: func [] [
-    block-set! cs-w 0 pf 'walk-mult
-    block-set! cs-w 1 pf 'walk-comfort-m
-    block-set! cs-w 2 pf 'walk-steep-mult
-    block-set! cs-w 3 pf 'walk-tolerance-m
-    block-set! cs-w 4 pf 'walk-over-mult
-    block-set! cs-w 5 pf 'walk-max-m
-    block-set! cs-w 6 pf 'wait-mult
-    block-set! cs-w 7 pf 'ivt-mult
-    block-set! cs-w 8 pf 'arrive-mult
-    block-set! cs-w 9 pf 'buffer-s
-    block-set! cs-w 10 pf 'walk-cms
-    block-set! cs-w 11 either = j-st 'WALKING_TO_STOP [ 1 ] [ either = j-st 'WAITING_FOR_BUS [ 1 ] [ 0 ] ]
-]
-wc: func [m] [
-    cm: block-at cs-w 1
-    tl: block-at cs-w 3
-    eq: either > m cm [
-        either > m tl [
-            + + cm * - tl cm block-at cs-w 2 * - m tl block-at cs-w 4
-        ] [ + cm * - m cm block-at cs-w 2 ]
-    ] [ m ]
-    + either > m block-at cs-w 5 [ 1000000 ] [ 0 ]  * block-at cs-w 0 / * eq 100 block-at cs-w 10
-]
-cs-ok: 0
-cs-cost: func [c a] [
-    cs-ok: 0
-    either > ar a 1 cl c 2 [
-        d: cq-d c
-        am: cst cl c 1 2
-        wo: / * am 100 block-at cs-w 10
-        et: - + cl c 3 d j-now
-        either < et wo [ 0 ] [
-            cs-ok: 1
-            sl: - et wo
-            pw: either block-at cs-w 11 [ sl ] [ either < sl block-at cs-w 9 [ sl ] [ block-at cs-w 9 ] ]
-            em: cds ar a 0 2
-            + + + + wc am  wc em
-                * block-at cs-w 6 pw
-                * block-at cs-w 7 - ar a 2 cl c 3
-                * block-at cs-w 8 + - + ar a 2 d j-now  / * em 100 block-at cs-w 10
-        ]
-    ] [ 0 ]
-]
-cs-v: 0
-cs-best-arr: func [c a b] [
+pg-offer: func [a b] [
     either >= a b [
-        v: cs-cost c a
-        either cs-ok [ cs-v: v  a ] [ -1 ]
+        ca: * 7 a
+        tb: * 8 block-at cq-cl ca
+        fa: block-at cq-tr + tb 2
+        la: block-at cq-tr + tb 3
+        ai: either < la fa [ -1 ] [
+            k: cs-k a
+            either cs-ok [ cs-best-arr block-at cq-cl + ca 2 fa la k ] [ -1 ]
+        ]
+        either < ai 0 [ none ] [
+            n: cn 12
+            k: block-at cs-w 13
+            o: block-at cq-cl + ca 4
+            p: either < n k [ al-pos cs-v o 0 n ] [
+                q: * 17 - k 1
+                either either < cs-v block-at cq-alt q [ 1 ] [ either = cs-v block-at cq-alt q [ < o block-at cq-alt + q 10 ] [ 0 ] ] [
+                    al-pos cs-v o 0 n
+                ] [ k ]
+            ]
+            either < p k [
+                al-shift * 17 p  - * 17 either < n k [ n ] [ - k 1 ] 1
+                q: * 17 p
+                sa: * 4 block-at cq-cl + ca 1
+                aa: * 4 ai
+                da: * 3 block-at cq-ar aa
+                block-set! cq-alt q cs-v
+                block-set! cq-alt + q 1 block-at cq-tr + tb 4
+                block-set! cq-alt + q 2 block-at cq-cl + ca 2
+                block-set! cq-alt + q 3 block-at cq-cl + ca 3
+                block-set! cq-alt + q 4 block-at cq-st sa
+                block-set! cq-alt + q 5 block-at cq-st + sa 1
+                block-set! cq-alt + q 6 block-at cq-ar + aa 1
+                block-set! cq-alt + q 7 block-at cq-ar + aa 2
+                block-set! cq-alt + q 8 block-at cq-ds da
+                block-set! cq-alt + q 9 block-at cq-ds + da 1
+                block-set! cq-alt + q 10 o
+                block-set! cq-alt + q 11 block-at cq-ar + aa 3
+                block-set! cq-alt + q 12 block-at cq-cl + ca 5
+                block-set! cq-alt + q 13 block-at cq-cl + ca 6
+                block-set! cq-alt + q 14 block-at cq-tr + tb 5
+                block-set! cq-alt + q 15 block-at cq-tr + tb 6
+                block-set! cq-alt + q 16 -1
+                either < n k [ block-set! cq-n 12 + n 1 ] [ none ]
+            ] [ none ]
+        ]
     ] [
         m: / + a b 2
-        i: cs-best-arr c a m
-        vi: cs-v
-        j: cs-best-arr c + m 1 b
-        either < i 0 [ j ] [ either < j 0 [ cs-v: vi  i ] [ either < cs-v vi [ j ] [ cs-v: vi  i ] ] ]
+        pg-offer a m
+        pg-offer + m 1 b
     ]
 ]
-cs-bv: 0
-cs-ba: -1
-cs-best-call: func [a b] [
-    either >= a b [
-        t: cl a 0
-        ai: either < tr t 3 tr t 2 [ -1 ] [ cs-best-arr a tr t 2 tr t 3 ]
-        either < ai 0 [ -1 ] [ cs-bv: cs-v  cs-ba: ai  a ]
-    ] [
+al-pos: func [v o i n] [
+    either < i n [
+        q: * 17 i
+        either either < v block-at cq-alt q [ 1 ] [ either = v block-at cq-alt q [ < o block-at cq-alt + q 10 ] [ 0 ] ] [ i ] [ al-pos v o + i 1 n ]
+    ] [ n ]
+]
+al-shift: func [a b] [
+    either >= a b [ either = a b [ block-set! cq-alt + a 17 block-at cq-alt a ] [ none ] ] [
         m: / + a b 2
-        i: cs-best-call a m
-        vi: cs-bv  ai: cs-ba
-        j: cs-best-call + m 1 b
-        either < i 0 [ j ] [
-            either < j 0 [ cs-bv: vi  cs-ba: ai  i ] [
-                either < cs-bv vi [ j ] [ cs-bv: vi  cs-ba: ai  i ]
-            ]
-        ]
+        al-shift + m 1 b
+        al-shift a m
     ]
 ]
-cs-score: func [] [
-    cq-fill cq-best 0 3 -1
-    either = cn 6 1 [
-        either > cn 3 0 [
-            cs-prep
-            either > cn 0 0 [ cs-walk cq-st 0 - cn 0 1 f-x f-y ] [ none ]
-            either > cn 1 0 [ cs-walk cq-ds 0 - cn 1 1 j-dx j-dy ] [ none ]
-            bc: cs-best-call 0 - cn 3 1
-            either < bc 0 [ none ] [
-                block-set! cq-best 0 bc
-                block-set! cq-best 1 cs-ba
-                block-set! cq-best 2 cs-bv
-            ]
-        ] [ none ]
-    ] [ none ]
-]
-cq-reset 0 0
+cq-fill cq-n 0 16 0
+cq-fill cq-best 0 4 -1
 ]

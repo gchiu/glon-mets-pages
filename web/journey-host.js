@@ -1,9 +1,18 @@
 
 import { readState } from "./view-model.js";
+import { pageCandidates } from "./transit/candidates.js";
 import { ActiveTrip } from "./transit/active-trip.js";
 export { readState };
 
 const MATCH_S = 90;
+const EVENT_BYTES = 200;
+export function packInt(v) {
+  if (!Number.isInteger(v) || Math.abs(v) >= 2 ** 27) throw new Error("packInt: not a 28-bit integer: " + v);
+  let m = Math.abs(v), s = String.fromCharCode(80 + (m % 45));
+  for (m = Math.floor(m / 45); m > 0; m = Math.floor(m / 45)) s = String.fromCharCode(35 + (m % 45)) + s;
+  return (v < 0 ? "!" : "") + s;
+}
+const packRow = (...xs) => xs.map(packInt).join("");
 
 export class JourneyHost {
   constructor(machine, proj, { onRender = () => {}, effects = null, transit = null, geometry = "full" } = {}) {
@@ -64,11 +73,21 @@ export class JourneyHost {
     return this.#send("dest-at", `${k} ${x} ${y}`);
   }
 
+  retained() {
+    const set = this.candidateSet, r = this.state.retained;
+    if (!set || !r || r.gen !== set.gen) return [];
+    return r.alts.map((x, alt) => {
+      const ci = set.callAt.get(`${x.trip}/${x.bseq}`);
+      if (ci === undefined) return null;
+      const call = set.calls[ci];
+      return { alt, trip: set.trips[call.tripRef], stop: set.stops[call.stopRef], call };
+    }).filter(Boolean);
+  }
+
   realtimeStops(max = 8) {
-    const set = this.candidateSet, p = this.state.realtime;
-    if (!set || !p || p.gen !== set.gen) return [];
-    const refs = [...new Set(set.calls.map((c) => c.stopRef))].sort((a, b) => a - b);
-    return refs.slice(0, max).map((r) => set.stops[r].stopId);
+    const p = this.state.realtime;
+    if (!this.candidateSet || !p || p.gen !== this.candidateSet.gen) return [];
+    return [...new Set(this.retained().map((x) => x.stop.stopId))].slice(0, max);
   }
 
   #now() { return this.lastClock ? this.lastClock.secs : 0; }
@@ -87,37 +106,72 @@ export class JourneyHost {
     return this.delays.get(t.tripNo) || null;
   }
   #sendCalls(pred) {
-    const set = this.candidateSet;
-    if (!set) return;
-    set.calls.forEach((c, ref) => {
-      const t = set.trips[c.tripRef], s = set.stops[c.stopRef];
-      if (!pred(c, t, s)) return;
+    for (const { alt, trip: t, stop: s, call: c } of this.retained()) {
+      if (!pred(c, t, s)) continue;
       const f = this.#factFor(c, t, s);
-      if (!f) return;
-      const v = `${f.delay} ${f.seen}`, prev = this.sentRt.get(ref);
-      if (prev === v || (f.seen < 0 && prev === undefined)) return;
-      this.sentRt.set(ref, v);
-      this.#send("cq-rt", `${ref} ${v}`);
-    });
+      if (!f) continue;
+      const v = `${f.delay} ${f.seen}`, prev = this.sentRt.get(alt);
+      if (prev === v || (f.seen < 0 && prev === undefined)) continue;
+      this.sentRt.set(alt, v);
+      this.#send("cq-rt", `${alt} ${v}`);
+    }
   }
 
-  candidates(set, gen = 1) {
+  candidates(set, gen = 1, { pageOrder = null } = {}) {
     const xy = (p) => this.proj.toXY(p.lat, p.lon).join(" ");
-    this.candidateSet = { ...set, gen };
+    const paged = pageCandidates(set);
+    const pages = pageOrder ? pageOrder.map((i) => paged[i]) : paged;
+    const tripNo = (t) => t.tripNo ?? t.ref;
+    this.candidateSet = { ...set, gen, pages: pages.length,
+      callAt: new Map(set.calls.map((c, i) => [`${tripNo(set.trips[c.tripRef])}/${c.seq}`, i])) };
     this.sentRt.clear();
-    this.#send("cq-begin", `${gen} ${set.truncated ? 1 : 0}`);
-    for (const s of set.stops) this.#send("cq-stop", xy(s));
-    for (const s of set.dsts) this.#send("cq-dst", xy(s));
-    for (const t of set.trips) this.#send("cq-trip", `${t.patNo ?? 0} ${t.dir} ${t.firstArr} ${t.lastArr} ${t.tripNo ?? t.ref}`);
-    for (const c of set.calls) this.#send("cq-call", `${c.tripRef} ${c.stopRef} ${c.seq} ${c.secs}`);
-    for (const a of set.arrs) this.#send("cq-arr", `${a.dstRef} ${a.seq} ${a.secs}`);
-    this.#sendCalls(() => true);                          // known realtime, original observation times
-    return this.#send("cq-end", String(gen));
+    if (!pages.length) {                                   // nothing at all: one empty, final page
+      this.#send("cq-page", `${gen} 0`);
+      return this.#send("cq-page-end", `${gen} 0 1 ${set.truncated ? 1 : 0}`);
+    }
+    pages.forEach((p, n) => {
+      const sRef = new Map(p.stops.map((s, i) => [s, i])), dRef = new Map(p.dsts.map((d, i) => [d, i]));
+      const tRef = new Map(p.trips.map((t, i) => [t, i]));
+      this.#send("cq-page", `${gen} ${n}`);
+      const xyv = (p) => this.proj.toXY(p.lat, p.lon);
+      this.#batch("cq-stop", p.stops.map((s) => packRow(...xyv(set.stops[s]), 0, 0)));
+      this.#batch("cq-dst", p.dsts.map((d) => packRow(...xyv(set.dsts[d]), 0)));
+      let first = 0;
+      this.#batch("cq-trip", p.trips.map((ti) => {
+        const t = set.trips[ti], na = p.arrs.filter((a) => a >= t.firstArr && a <= t.lastArr).length;   // a trip's arrivals: its range
+        const row = packRow(t.patNo ?? 0, t.dir, first, first + na - 1, tripNo(t), 0, 0, 0);
+        first += na;
+        return row;
+      }));
+      this.#batch("cq-call", p.calls.map((ci) => { const c = set.calls[ci]; return packRow(tRef.get(c.tripRef), sRef.get(c.stopRef), c.seq, c.secs, ci, 0, 0); }));
+      p.calls.forEach((ci, local) => {
+        const c = set.calls[ci];
+        const f = this.#factFor(c, set.trips[c.tripRef], set.stops[c.stopRef]);
+        if (f && f.seen >= 0) this.#send("cq-prt", `${local} ${f.delay} ${f.seen}`);
+      });
+      this.#batch("cq-arr", p.arrs.map((ai) => { const a = set.arrs[ai]; return packRow(dRef.get(a.dstRef), a.seq, a.secs, ai); }));
+      this.#send("cq-page-end", `${gen} ${n} ${n === pages.length - 1 ? 1 : 0} ${p.truncated || set.truncated ? 1 : 0}`);
+    });
+    for (const { alt, trip: t, stop: s, call: c } of this.retained()) {
+      const f = this.#factFor(c, t, s);
+      if (f && f.seen >= 0) this.sentRt.set(alt, `${f.delay} ${f.seen}`);
+    }
+    return this.state;
+  }
+  #batch(token, rows) {
+    for (let i = 0; i < rows.length;) {
+      let v = rows[i++];
+      while (i < rows.length && v.length + rows[i].length <= EVENT_BYTES) v += rows[i++];
+      this.#send(token, v);
+    }
   }
   candidateRealtime(tripRef, delay, seen = this.#now()) {
-    this.candidateSet.calls.forEach((c, ref) => {
-      if (c.tripRef === tripRef) { this.sentRt.set(ref, `${delay} ${seen}`); this.#send("cq-rt", `${ref} ${delay} ${seen}`); }
-    });
+    const t = this.candidateSet.trips[tripRef];
+    for (const x of this.retained()) {
+      if (x.trip !== t) continue;
+      this.sentRt.set(x.alt, `${delay} ${seen}`);
+      this.#send("cq-rt", `${x.alt} ${delay} ${seen}`);
+    }
     return this.realtimeEnd(seen);
   }
 
@@ -149,7 +203,7 @@ export class JourneyHost {
         const [oLat, oLon] = this.proj.toLatLon(q.ox, q.oy), [dLat, dLon] = this.proj.toLatLon(q.dx, q.dy);
         this.candidates(this.transit.candidates({
           date: this.lastClock.date, now: this.lastClock.secs, origin: { lat: oLat, lon: oLon }, dest: { lat: dLat, lon: dLon },
-          radiusO: q.radiusO, radiusD: q.radiusD, horizon: q.horizon,
+          radiusO: q.radiusO, radiusD: q.radiusD, horizon: q.horizon, k: q.k, c: q.c, a: q.a, reach: q.reach,
         }), q.gen);
       } else if (a && `${a.trip}/${a.bseq}/${a.aseq}` !== this.answeredA) {
         this.answeredA = `${a.trip}/${a.bseq}/${a.aseq}`;
@@ -162,7 +216,9 @@ export class JourneyHost {
 
   #send(token, value) {
     const prev = this.state;
-    this.record = this.machine.event(token, value);
+    const record = this.machine.event(token, value);
+    if (record === "") return this.state;
+    this.record = record;
     this.state = readState(this.record);
     if (!this.state.activate) this.answeredA = "";        // a later choice may ask again
     if (this.activePattern) { this.state.route = this.activePattern.name; this.state.head = this.activePattern.headsign; }

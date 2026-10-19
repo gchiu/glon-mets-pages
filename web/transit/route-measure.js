@@ -29,6 +29,21 @@ export function routePoints(points, proj) {
   return out;
 }
 
+export const SEGMENT_MAX_M = 4000;
+export function subdivide(pts, maxM = SEGMENT_MAX_M) {
+  const out = [pts[0]];
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, ay, ad] = pts[i - 1], [bx, by, bd] = pts[i];
+    const k = Math.ceil(Math.max(Math.abs(bx - ax), Math.abs(by - ay)) / maxM);
+    for (let j = 1; j < k; j++) {
+      const d = Math.round(ad + (bd - ad) * j / k);
+      if (d > out.at(-1)[2] && d < bd) out.push([Math.round(ax + (bx - ax) * j / k), Math.round(ay + (by - ay) * j / k), d]);
+    }
+    out.push(pts[i]);
+  }
+  return out;
+}
+
 export class RouteMeasurer {
   constructor(pts) {
     if (!Array.isArray(pts) || pts.length < 2) throw new Error("a route needs at least two points");
