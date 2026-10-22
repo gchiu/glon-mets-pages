@@ -5,7 +5,7 @@ export const ALERTS = ["NONE", "STAY_ON", "GET_READY", "PRESS_STOP", "GET_OFF"];
 export const LEAVES = ["NONE", "LEAVE_IN", "LEAVE_NOW", "MISSED", "WAIT", "WALK"];
 export const FARES = ["unknown", "free", "paid", "concession"];
 export const DIRS = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
-export const ACTS = ["choose", "accept", "board", "alight", "where", "cancel", "done"];
+export const ACTS = ["choose", "accept", "board", "alight", "where", "cancel", "done", "reboard"];
 
 const ints = (s) => s.trim().split(/\s+/).filter(Boolean).map(Number);
 
@@ -53,7 +53,7 @@ export function readState(script) {
     } else if (op === "M") {
       const v = ints(rest);
       st.measure = v[0] === 0 ? { kind: "pre", lo: v[1], hi: v[2], floor: v[3] }
-        : { kind: "bus", lo: v[1], floor: v[2], base: v[3], rate: v[4], t0: v[5] };
+        : { kind: "bus", lo: v[1], floor: v[2], base: v[3], rate: v[4], t0: v[5], ...(v.length > 6 ? { back: v[6] } : {}) };
     } else if (op === "P") {
       const [gen] = ints(rest);
       st.realtime = { gen };

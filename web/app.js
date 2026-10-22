@@ -1,7 +1,7 @@
 
 import { bootJourneyApp } from "./boot.js";
 import { JourneyHost } from "./journey-host.js";
-import { renderView } from "./ui.js";
+import { renderView, renderFrom, serviceText } from "./ui.js";
 import { PlatformEffects } from "./effects.js";
 import { resolveRoutes, routeChoices } from "./gtfs/network.js";
 import { NetworkStore } from "./network-store.js";
@@ -14,7 +14,8 @@ import { RealtimePoller } from "./transit/metlink-realtime.js";
 import { RealtimeKeys, statusText, stopCheckRows } from "./realtime-settings.js";
 import { startupMode, passengerUrl, locationProblem } from "./startup.js";
 import { NominatimGeocoder } from "./geocoder.js";
-import { MyPlaces, catalogue, passengerProfile, PLACE_SLOT, FareSetting, setupStep, findStops, parseLocation } from "./places.js";
+import { JourneyStore, checkJourney } from "./active-journey.js";
+import { MyPlaces, catalogue, passengerProfile, PLACE_SLOT, FareSetting, OriginSetting, setupStep, findStops, parseLocation } from "./places.js";
 
 const $ = (s) => document.querySelector(s);
 const readText = (p) => fetch(p).then((r) => { if (!r.ok) throw new Error(`${p}: HTTP ${r.status}`); return r.text(); });
@@ -35,19 +36,25 @@ const places = MODE === "passenger" ? new MyPlaces() : null;
 let cat = null;          // the landmark catalogue (config/landmarks.json)
 let chosenPlace = null;  // the one of My Places in Glon's slot 1, once chosen
 let lastFix = null;      // the latest GPS fix, in memory only (Use my current location)
+const currentFix = () => (lastFix && session && session.host.state.fix ? lastFix : null);
 let lastGpsError = null; // why there is no fix, if the browser said (setup explains it plainly)
 const fare = MODE === "passenger" ? new FareSetting() : null;
+const origin = MODE === "passenger" ? new OriginSetting() : null;
+const fromPoint = () => (origin ? origin.resolve(places) : null);
+const journeys = MODE === "passenger" ? new JourneyStore() : null;
+let journeyReady = false;
 
 const namesFor = (host, profile) => ({
   rtSource: session && session.poller ? "metlink" : "demo",
   stops: host && host.activePattern ? host.activePattern.stops.map((s) => s.name) : [],
   dests: places ? [profile.favourites[0].name, chosenPlace ? chosenPlace.name : "Your place"] : profile.favourites.map((f) => f.name),
-  ...(places ? { places: places.places } : {}),
+  ...(places ? { places: places.places, from: fromPoint() } : {}),
 });
 
 function paint(state, names) {
   const { body, acts } = renderView(state, names);
-  for (const [el, html] of [[$("#vb"), body], [$("#va"), acts]]) {
+  const from = renderFrom(state, names);
+  for (const [el, html] of [[$("#vf"), from], [$("#vb"), body], [$("#va"), acts]]) {
     if (el.dataset.last !== html) { el.innerHTML = html; el.dataset.last = html; }
   }
   $("#view").dataset.state = state.state;
@@ -84,13 +91,18 @@ async function start(mode) {
   const farePolicy = mode === "live" ? "config/fare-policy.metlink.glon" : "config/fare-policy.demo.glon";
   const { machine, proj } = await bootJourneyApp({ readText, readBytes, profile, region, farePolicy });
   let host = null;
-  host = new JourneyHost(machine, proj, { effects, transit, onRender: (st) => paint(st, namesFor(host, profile)) });
+  journeyReady = false;
+  host = new JourneyHost(machine, proj, { effects, transit,
+    onRender: (st) => { paint(st, namesFor(host, profile)); keepJourney(host, profile); wantFix(st); } });
   if (mode === "live") host.passengerType(fare.type);
+  const clock = mode === "live" ? new SystemClock(region.timezone) : null;
+  if (mode === "live") { host.clock(clock.now()); restoreJourney(host, profile, transit); }
+  journeyReady = true;
+  if (mode === "live" && fromPoint() && host.state.state === "IDLE") host.origin(fromPoint());
   paint(host.state, namesFor(host, profile));
 
   if (mode === "live") {
     const gps = new BrowserLocationProvider();
-    const clock = new SystemClock(region.timezone);
     await realtimeReady;
     const poller = new RealtimePoller({ source: keys.client, host, onStatus: showRt });
     const where = gps.available ? "Using your location · timetable" + (keys.client ? " · Metlink realtime" : "") : locationProblem(null);
@@ -110,7 +122,7 @@ async function start(mode) {
       host.position(fix);
     });
     $("#status").textContent = gps.available ? "Finding your location…" : where;
-    session = { host, poller, profile, stop() { gps.stop(); clock.stop(); } };
+    session = { host, poller, profile, transit, gps, stop() { gps.stop(); clock.stop(); } };
     showRt();
     showMode();
     goNext();                 // Home setup, fare setup, or Where do you want to go?
@@ -143,6 +155,19 @@ async function start(mode) {
   showRt();
   showMode();
 }
+
+let fixAsked = 0;
+function wantFix(st) {
+  const gps = session && session.gps;
+  if (!gps || st.fix || fromPoint() || st.state !== "DESTINATION_SELECTED") return;
+  const t = Date.now();
+  if (t - fixAsked < 10000) return;
+  fixAsked = t;
+  gps.refresh();
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && session && session.gps) { fixAsked = Date.now(); session.gps.refresh(); }
+});
 
 function showMode() {
   const sim = session && !session.poller;
@@ -217,15 +242,26 @@ document.addEventListener("click", (e) => {
   const act = b.dataset.act;
   if (act === "add-place") { openPlaces(); return; }
   if (act === "settings") { openSettings(); return; }
+  if (act === "board-other") { openBoardOther(); return; }
+  if (act === "board" && places) {
+    const st = session.host.state;
+    const ask = session.host.boardProposed({ at: currentFix(), dest: destOf(st.dest) });
+    if (ask) showBoardChoices(ask, "which");
+    return;
+  }
+  if (act === "change-from") { openFrom(); return; }
+  if (act === "from-here") { setFrom(null); return; }
   if (act === "place") {
     const p = places && places.get(b.dataset.value);
     if (!p) return;
     chosenPlace = p;
+    journeyMsg("");
     session.host.destination(PLACE_SLOT, p);
     session.host.command("choose", String(PLACE_SLOT));
     return;
   }
-  if (act === "choose") chosenPlace = null;
+  if (act === "choose") { chosenPlace = null; journeyMsg(""); }
+  if (act === "accept" && origin && origin.value) origin.clear();
   if (b.dataset.value !== undefined) session.host.command(act, b.dataset.value);
   else session.host.command(act);
 });
@@ -279,8 +315,10 @@ function openMyRoutes() {
 }
 function renderMyRoutes() {
   const list = installedRoutes();
+  const riding = activeJourneyRoute();
+  if (riding) routesMsg("#myroutes-msg", "Your bus journey uses one of these routes: it can be removed once the journey has ended.");
   $("#myroutes-list").replaceChildren(...list.map((c) => el("li", {}, el("span", { className: "pname", textContent: routeLabel(c) }),
-    el("button", { type: "button", textContent: "Remove", disabled: list.length < 2,
+    el("button", { type: "button", textContent: "Remove", disabled: list.length < 2 || c.routeId === riding,
       onclick: () => changeRoutes(() => network.remove(c.routeId), "#myroutes-msg").then((ok) => { if (ok) openMyRoutes(); }) }))));
 }
 $("#myroutes-input").oninput = () => describeRoutes($("#myroutes-input").value, "#myroutes-found", "#myroutes-msg");
@@ -300,12 +338,14 @@ function showUpdate() {
     ? `A newer Metlink timetable is available (valid ${s.feed.start || "?"} to ${s.feed.end || "?"}).`
     : `Newer timetables are available for route ${s.changed.join(", ")}.`;
 }
-$("#routes-update-go").onclick = () => changeRoutes(() => network.update(latestCat), "#routes-update-text").then((ok) => { if (ok) openSettings(); });
+$("#routes-update-go").onclick = () => activeJourneyRoute()
+  ? routesMsg("#routes-update-text", "Finish your bus journey first: a new timetable can't continue it.")
+  : changeRoutes(() => network.update(latestCat), "#routes-update-text").then((ok) => { if (ok) openSettings(); });
 
 const el = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); n.append(...kids); return n; };
 function repaintView() { if (session) paint(session.host.state, namesFor(session.host, session.profile)); }
 function placeMsg(t) { $("#place-msg").textContent = t || ""; }
-const SCREENS = ["view", "setup-routes", "setup-home", "setup-fare", "places", "settings", "myplaces", "myroutes"];
+const SCREENS = ["view", "setup-routes", "setup-home", "setup-fare", "places", "settings", "myplaces", "myroutes", "from", "board-other"];
 function show(id) {
   for (const s of SCREENS) $("#" + s).hidden = s !== id;
   if (id === "view") repaintView();
@@ -329,9 +369,13 @@ function openHomeSetup(settings) {
   homeMsg("");
   show("setup-home");
 }
-function setHome(point) { places.setHome(point); chosenPlace = null; afterSetup(); }
+function setHome(point) {
+  places.setHome(point); chosenPlace = null;
+  if (session && origin && origin.value) session.host.origin(fromPoint());   // a FROM of Home moves with it
+  afterSetup();
+}
 $("#home-here").onclick = () => {
-  if (lastFix) { setHome(lastFix); return; }
+  if (currentFix()) { setHome(currentFix()); return; }
   homeMsg(lastGpsError && lastGpsError.code === 1
     ? "This device is not sharing its location with the app. You can allow location for this site in your browser's settings, or choose another location."
     : "We can't see where you are yet. Wait a moment and try again, or choose another location.");
@@ -400,6 +444,104 @@ function renderPlaces() {
       : el("button", { type: "button", textContent: "Add", onclick: () => { places.addLandmark(l); placeMsg(`Added ${l.name}.`); renderPlaces(); repaintView(); } }))));
 }
 
+function journeyMsg(t) { $("#journey-msg").textContent = t || ""; $("#journey-msg").hidden = !t; }
+function activeJourneyRoute() {
+  const st = session && session.host.state.state;
+  if (st !== "ON_BUS" && st !== "WALKING_FINAL") return null;
+  const r = journeys && journeys.load().record;
+  return r ? r.routeId : null;
+}
+function keepJourney(host, profile) {
+  if (!journeys || !journeyReady || !host.lastClock) return;
+  const r = host.journeyRecord();
+  const was = journeys.load();
+  if (!r) { if (was.record || was.problem) journeys.clear(); return; }
+  const k = host.state.dest;
+  const dest = k === PLACE_SLOT && chosenPlace
+    ? { slot: k, name: chosenPlace.name, lat: chosenPlace.lat, lon: chosenPlace.lon, ...(chosenPlace.id ? { placeId: chosenPlace.id } : {}) }
+    : { slot: k, name: profile.favourites[k].name, lat: profile.favourites[k].lat, lon: profile.favourites[k].lon };
+  const rec = { v: 1, feed: network.selection().feed, date: host.lastClock.date, ...r, dest };
+  if (!was.record || JSON.stringify(was.record) !== JSON.stringify(rec)) journeys.save(rec);
+}
+function restoreJourney(host, profile, transit) {
+  if (!journeys) return;
+  const { record: r, problem } = journeys.load();
+  if (!r) { if (problem) { journeys.clear(); journeyMsg("Your earlier bus journey could not be read, so it was not restored. Where are you going?"); } return; }
+  const why = checkJourney(r, { selection: network.selection(), index: transit.index, clock: host.lastClock, destCount: profile.favourites.length });
+  if (why) { journeys.clear(); journeyMsg(`${why} Your earlier bus journey was not restored. Where are you going?`); return; }
+  if (r.dest.slot === PLACE_SLOT) {
+    chosenPlace = { id: r.dest.placeId, name: r.dest.name, lat: r.dest.lat, lon: r.dest.lon };
+    host.destination(PLACE_SLOT, r.dest);
+  }
+  host.command("choose", String(r.dest.slot));
+  let ok = host.boardService({ tripId: r.tripId, seq: r.boardSeq, alightSeq: r.alightSeq });
+  if (ok && r.phase === "WALKING_FINAL") { host.command("alight"); ok = host.state.state === "WALKING_FINAL"; }
+  if (!ok) {
+    host.command("cancel");
+    chosenPlace = null;
+    journeys.clear();
+    journeyMsg("Your earlier bus journey could not be restored. Where are you going?");
+  }
+}
+const destOf = (k) => (k === PLACE_SLOT && chosenPlace ? chosenPlace : session.profile.favourites[k]);
+function openBoardOther() {
+  const s = session, st = s && s.host.state;
+  if (!st || !(st.acts.includes("board") || st.acts.includes("reboard")) || !s.transit || !s.host.lastClock) return;
+  const t = s.host.lastClock, dest = destOf(st.dest);
+  const stop = st.state !== "ON_BUS" && s.host.activePattern && st.board >= 0 ? s.host.activePattern.stops[st.board] : null;
+  const at = currentFix() || stop;
+  showBoardChoices(at ? s.transit.boardable({ date: t.date, now: t.secs, at, dest }) : [], at ? "other" : "nowhere");
+}
+function showBoardChoices(list, kind) {
+  const dest = destOf(session.host.state.dest);
+  $("#board-other-msg").textContent = kind === "nowhere" ? "Your location is not known yet, so the buses near you can't be listed."
+    : kind === "which" ? `Buses on route ${list[0].route} go both ways here. Which one did you get on?`
+    : list.length ? `Buses on your routes that stop near you around now and go towards ${dest.name}:`
+    : `No bus on your routes stops near you around now and goes towards ${dest.name}. Only buses going there can be followed.`;
+  $("#board-other-list").replaceChildren(...list.map((c) => {
+    const tx = serviceText(c, dest.name);
+    return el("li", {},
+      el("span", {}, el("span", { className: "pname", textContent: tx.title }), el("span", { className: "pdetail", textContent: tx.detail })),
+      el("button", { type: "button", textContent: "I'm on this one", onclick: () => {
+        if (session.host.boardService(c)) { show("view"); return; }
+        $("#board-other-msg").textContent = `That bus can't be followed to ${dest.name}. Choose another, or go back.`;
+      } }));
+  }));
+  show("board-other");
+}
+$("#board-other-cancel").onclick = () => show("view");
+
+function openFrom() {
+  if (!places) return;
+  $("#from-stop").value = ""; $("#from-stops").replaceChildren();
+  $("#from-search").value = ""; renderFromLandmarks();
+  const mine = [...places.places.filter((p) => p.home), ...places.places.filter((p) => !p.home)];
+  $("#from-mine").replaceChildren(...mine.map((p) => el("li", {}, el("span", { className: "pname", textContent: p.name }),
+    el("button", { type: "button", textContent: "From here", onclick: () => setFrom({ kind: "place", ref: p.id }) }))));
+  show("from");
+}
+function setFrom(o, back = true) {
+  if (o) origin.set(o); else origin.clear();
+  if (session) session.host.origin(fromPoint());
+  if (back) show("view"); else repaintView();
+}
+function renderFromLandmarks() {
+  const q = $("#from-search").value;
+  $("#from-landmarks").replaceChildren(...(q.trim() ? cat.search(q) : []).slice(0, 8).map((l) => el("li", {},
+    el("span", { textContent: l.name }),
+    el("button", { type: "button", textContent: "From here", onclick: () => setFrom({ kind: "landmark", ref: l.id, name: l.name, lat: l.lat, lon: l.lon }) }))));
+}
+$("#from-here").onclick = () => setFrom(null);
+$("#from-cancel").onclick = () => show("view");
+$("#from-search").oninput = () => renderFromLandmarks();
+$("#from-stop").oninput = () => {
+  if (!gtfsIndex) { $("#from-stops").replaceChildren(); return; }
+  $("#from-stops").replaceChildren(...findStops(gtfsIndex.stops.values(), $("#from-stop").value).map((st) =>
+    el("li", {}, el("span", { textContent: `${st.stop_name} (stop ${st.stop_id})` }),
+      el("button", { type: "button", textContent: "From here",
+        onclick: () => setFrom({ kind: "stop", ref: String(st.stop_id), name: st.stop_name, lat: st.lat, lon: st.lon }) }))));
+};
+
 let removing = null;           // the place awaiting "Remove …?" confirmation
 let renaming = null;           // the place being renamed
 function openMyPlaces() {
@@ -460,6 +602,7 @@ $("#myplaces-remove").onclick = () => {
 $("#myplaces-close").onclick = () => openSettings();
 function removePlace(id) {
   if (!places.remove(id)) return;
+  if (origin && origin.value && origin.value.kind === "place" && origin.value.ref === id) setFrom(null, false);
   if (chosenPlace && chosenPlace.id === id) {
     chosenPlace = null;
     if (session && session.host.state.state !== "IDLE") session.host.command("cancel");
@@ -467,11 +610,11 @@ function removePlace(id) {
   repaintView();
 }
 $("#place-here").onclick = () => {
-  if (!lastFix) { placeMsg("Your location is not known yet. Allow location for this site, then try again."); return; }
+  if (!currentFix()) { placeMsg("Your location is not known yet. Allow location for this site, then try again."); return; }
   $("#place-here-form").hidden = false; $("#place-name").value = ""; $("#place-name").focus(); placeMsg("");
 };
 $("#place-save").onclick = () => {
-  try { const p = places.addHere($("#place-name").value, lastFix); placeMsg(`Saved ${p.name}.`); $("#place-here-form").hidden = true; }
+  try { const p = places.addHere($("#place-name").value, currentFix()); placeMsg(`Saved ${p.name}.`); $("#place-here-form").hidden = true; }
   catch (err) { placeMsg(err.message); }
   renderPlaces(); repaintView();
 };

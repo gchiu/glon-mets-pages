@@ -63,6 +63,10 @@ export class ActiveTrip {
     }
     const w = this.projection(req, fix);
     const m = this.measurer.measure({ x: fix.x, y: fix.y, ...w });
+    if (req.kind === "bus" && req.back !== undefined) {
+      const b = this.measurer.measure({ x: fix.x, y: fix.y, lo: req.back, hi: req.floor, floor: req.back });
+      return { ...w, s: m.s, lat: m.lat, behind: { s: b.s, lat: b.lat } };
+    }
     return { ...w, s: m.s, lat: m.lat };
   }
 

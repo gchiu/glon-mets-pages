@@ -18,8 +18,10 @@ const NOTES = {
   2: "You passed your stop. Get off at the next stop.",
   5: "is not set up yet (D1).",
   6: "Live times changed: this is now the better bus.",
+  7: "Buses on this route go both ways here. Which one did you get on?",
+  8: "This bus seems to be going the other way. It may not be the bus shown: tell us which bus you are on, or end the journey.",
 };
-const ACT_LABEL = { accept: "Start journey", board: "I'm on the bus", alight: "I'm off the bus",
+const ACT_LABEL = { accept: "Start journey", board: "I got on this bus", alight: "I'm off the bus",
   where: "Where am I?", cancel: "End journey", done: "Done" };
 
 export function whereAmI(v, names) {
@@ -28,6 +30,7 @@ export function whereAmI(v, names) {
   const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
   switch (v.state) {
     case "ON_BUS":
+      if (v.note === 8) return `Your bus may not be Route ${v.route} to ${v.head}: it seems to be going the other way.`;
       return `You are on Route ${v.route} heading to ${v.head}. Your stop, ${stop(v.bus.alight)}, is ` +
         `${n(v.bus.togo, "stop", "stops")} away. ${ALERT_ADVICE[v.alert] || ""}`.trim();
     case "WALKING_TO_STOP":
@@ -99,7 +102,7 @@ function body(v, names) {
     case "IDLE":
       return "";
     case "DESTINATION_SELECTED":
-      return `<h1>${dest}</h1><p>${v.fix ? "Finding your bus…" : "Waiting for your location…"}</p>`;
+      return `<h1>${dest}</h1><p>${v.fix || names.from ? "Finding your bus…" : "Waiting for your location…"}</p>`;
     case "ON_BUS": {
       const b = v.bus;
       return `<div class="alert a-${v.alert}">${ALERT_LABEL[v.alert] || ""}</div>` +
@@ -128,10 +131,13 @@ export function renderView(v, names) {
   if (v.where) h += `<div class="where"><p>${esc(whereAmI(v, names))}</p></div>`;
   let a = "";
   if (v.where) a += `<button data-act="where-close" class="act-where-close">OK</button>`;
-  const acts = v.acts.filter((x) => x !== "choose" && !(x === "where" && v.where));
+  const acts = v.acts.filter((x) => x !== "choose" && x !== "reboard" && !(x === "where" && v.where));
   if (acts.length) {
     const label = (x) => (x === "accept" && v.walkOnly ? "Start walking" : ACT_LABEL[x]);
     a += acts.map((x) => `<button data-act="${x}" class="act-${x}">${label(x)}</button>`).join("");
+  }
+  if (names.places && (v.acts.includes("board") || v.acts.includes("reboard"))) {
+    a += `<button data-act="board-other" class="act-board-other">${v.acts.includes("reboard") ? "Tell us which bus you are on" : "I got on a different bus"}</button>`;
   }
   if (v.state === "IDLE" && names.places) {
     const mine = (p) => `<button class="dest mine${p.home ? " home" : ""}" data-act="place" data-value="${esc(p.id)}">${esc(p.name)}</button>`;
@@ -147,4 +153,29 @@ export function renderView(v, names) {
   }
   if (v.state !== "IDLE" && a) a = `<div class="acts">${a}</div>`;
   return { body: h, acts: a };
+}
+
+export function serviceText(c, destName) {
+  const where = [c.next ? `next ${c.next}` : null, c.last ? `ends at ${c.last}` : null].filter(Boolean).join(", ");
+  return { title: `${c.route} to ${c.headsign}`,
+    detail: `${clock(c.secs)} from ${c.stopName} (stop ${c.stopId})${where ? ` · ${where}` : ""}` +
+      (c.toDest === false && destName ? ` · does not go to ${destName}` : "") };
+}
+
+const PLANNING = new Set(["IDLE", "DESTINATION_SELECTED", "JOURNEY_PROPOSED"]);
+export function renderFrom(v, names) {
+  if (!("from" in names)) return "";
+  const from = names.from ? esc(names.from.name) : "Current location";
+  if (!PLANNING.has(v.state)) return "";
+  let h = `<div class="fromto"><div class="ft"><span class="k">FROM</span> <b>${from}</b>` +
+    `<button data-act="change-from" class="act-change-from">Change</button></div>`;
+  if (v.state !== "IDLE") {
+    h += `<div class="ft"><span class="k">TO</span> <b>${esc(names.dests[v.dest] || "")}</b>` +
+      `<button data-act="cancel" class="act-change-to">Change</button></div>`;
+  }
+  if (names.from) {
+    h += `<p class="hint">Times are for leaving ${from} now.` +
+      ` <button data-act="from-here" class="act-from-here">Use current location</button></p>`;
+  }
+  return h + `</div>`;
 }

@@ -35,7 +35,7 @@ acts: func [st] [
     either = st 'JOURNEY_PROPOSED [ 50 ] [
     either = st 'WALKING_TO_STOP [ 52 ] [
     either = st 'WAITING_FOR_BUS [ 52 ] [
-    either = st 'ON_BUS [ 56 ] [
+    either = st 'ON_BUS [ either >= mod block-at m-hist 3 128 99 [ 184 ] [ 56 ] ] [
     either = st 'WALKING_FINAL [ 48 ] [ 64 ] ] ] ] ] ] ]
 ]
 dir-code: func [ex ey] [
@@ -64,7 +64,9 @@ v-strip: func [] [
 ]
 v-dest-walk: func [] [
     dm: to-dest-m
-    op 68 fv dm fv dir-code - j-dx f-x - j-dy f-y fv walk-s dm op 10
+    either = j-st 'WALKING_FINAL [ op 68 fv dm fv dir-code - j-dx f-x - j-dy f-y ] [
+        op 68 fv dm fv dir-code - j-dx block-at dest-row 1 - j-dy block-at dest-row 2 ]
+    fv walk-s dm op 10
 ]
 v-bus-option: func [] [
     wm: to-board-m
@@ -98,7 +100,7 @@ render: func [] [
     st: j-st
     op 83
     fv st-code st  fv al-code j-alert  fv lv-code j-leave  fv j-buzz
-    fv j-dest  fv j-note  fv j-where  fv rt-live  fv f-have  fv j-walk
+    fv j-dest  fv j-note  fv j-where  fv rt-live  fv either > f-have 0 [ 1 ] [ 0 ]  fv j-walk
     fv acts st
     op 10
     either = st 'ON_BUS [ v-on-bus ] [
@@ -107,13 +109,13 @@ render: func [] [
     either = st 'WALKING_TO_STOP [ v-bus-option ] [
     either = st 'WAITING_FOR_BUS [ v-bus-option ] [ none ] ] ] ] ]
     either = cn 6 1 [ v-cand ] [ none ]
-    either = j-q 1 [ op 81 fv j-qgen fv j-rad fv j-rad fv c 'horizon-s fv f-x fv f-y fv j-dx fv j-dy
+    either = j-q 1 [ op 81 fv j-qgen fv j-rad fv j-rad fv c 'horizon-s fv block-at dest-row 1 fv block-at dest-row 2 fv j-dx fv j-dy
         fv c 'cand-k fv c 'cand-c fv c 'cand-a fv pf 'walk-cms op 10 ] [ none ]
     either = j-g 1 [ op 65 fv j-trip fv j-bseq fv j-aseq op 10 ] [ none ]
     either either = j-g 0 [ >= j-board 0 ] [ 0 ] [
         op 87 fv jw-base fv j-board fv j-alight op 10
         either = st 'ON_BUS [
-            op 77 fv 1 fv - m-s c 'back-tol-m fv - m-s c 'back-tol-m fv + m-s 30 fv c 'max-cms fv m-t op 10
+            op 77 fv 1 fv - m-s c 'back-tol-m fv - m-s c 'back-tol-m fv + m-s 30 fv c 'max-cms fv m-t fv - m-s * 18 c 'back-tol-m op 10
         ] [ either j-walk [ none ] [
             either either = st 'JOURNEY_PROPOSED [ 1 ] [ either = st 'WALKING_TO_STOP [ 1 ] [ = st 'WAITING_FOR_BUS ] ] [
                 op 77 fv 0 fv - sv j-board 0 30 fv + sv j-board 0 150 fv -100000 op 10

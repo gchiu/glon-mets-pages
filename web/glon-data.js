@@ -35,7 +35,7 @@ export function profileSource(profile, proj) {
     });
   const conc = profile.concession ? `'${glonWord(profile.concession)}` : "none";
   return checkSource(
-    `[\ndest-n: ${profile.favourites.length}\ndest-row: [ ${rows.join("  ")} ]\n` +
+    `[\ndest-n: ${profile.favourites.length}\ndest-row: [ ${["0 0 0", ...rows].join("  ")} ]\n` +
     `pf-conc: ${conc}\nprefs: [ ${prefs.join(" ")} ]\n]\n`,
     "profile");
 }

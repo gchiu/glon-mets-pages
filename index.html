@@ -20,7 +20,8 @@
     <p id="mode-text"></p>
     <button id="leave-demo" type="button">Leave demo</button>
   </div>
-  <div id="vb" aria-live="polite"></div><div id="va"></div>
+  <p id="journey-msg" class="note" role="status" hidden></p>
+  <div id="vb" aria-live="polite"></div><div id="vf"></div><div id="va"></div>
   <p id="status" class="status" role="status"></p>
 </main>
 <section id="setup-routes" class="places setup" hidden aria-label="Your routes">
@@ -97,6 +98,26 @@
   <h2>Popular Wellington places</h2>
   <ul id="place-results" class="plist"></ul>
   <button id="places-close" type="button" class="done">Done</button>
+</section>
+<section id="from" class="places" hidden aria-label="Travel from">
+  <h1>Travel from</h1>
+  <p class="hint">Journeys are planned from here, leaving now, until you start one or change back to your current location.</p>
+  <button id="from-here" type="button" class="big">Current location</button>
+  <h2>My Places</h2>
+  <ul id="from-mine" class="plist"></ul>
+  <h2>A bus stop</h2>
+  <input id="from-stop" type="search" autocomplete="off" placeholder="Stop name or number" aria-label="Bus stop name or number">
+  <ul id="from-stops" class="plist"></ul>
+  <h2>Popular Wellington places</h2>
+  <input id="from-search" type="search" autocomplete="off" placeholder="For example Te Papa" aria-label="Popular place">
+  <ul id="from-landmarks" class="plist"></ul>
+  <button id="from-cancel" type="button" class="done">Cancel</button>
+</section>
+<section id="board-other" class="places" hidden aria-label="Which bus are you on?">
+  <h1>Which bus are you on?</h1>
+  <p id="board-other-msg" role="status"></p>
+  <ul id="board-other-list" class="plist found"></ul>
+  <button id="board-other-cancel" type="button" class="done">Back</button>
 </section>
 <section id="myplaces" class="places" hidden aria-label="My Places">
   <h1>My Places</h1>

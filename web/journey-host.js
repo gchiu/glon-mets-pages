@@ -1,6 +1,7 @@
 
 import { readState } from "./view-model.js";
 import { pageCandidates } from "./transit/candidates.js";
+import { serviceRow } from "./transit/boarding.js";
 import { ActiveTrip } from "./transit/active-trip.js";
 export { readState };
 
@@ -39,13 +40,14 @@ export class JourneyHost {
   position({ lat, lon, accuracy = 10 }) {
     const [x, y] = this.proj.toXY(lat, lon);
     const acc = Math.max(0, Math.round(accuracy));
-    let s = -1, l = -1;
+    let s = -1, l = -1, behind = "";
     const req = this.state.measure;
     if (req && this.active) {
       const m = this.active.measure(req, { x, y, acc, t: this.#now() });
       s = m.s; l = m.lat;
+      if (m.behind) behind = ` ${m.behind.s} ${m.behind.lat}`;
     }
-    return this.#send("fix", `${x} ${y} ${acc} ${s} ${l}`);
+    return this.#send("fix", `${x} ${y} ${acc} ${s} ${l}${behind}`);
   }
   clock(time) { this.lastClock = time; return this.#send("clock", `${time.secs} ${time.date} ${time.weekday}`); }
   realtime({ trip, delay, seen = this.#now() }) {
@@ -64,13 +66,49 @@ export class JourneyHost {
     this.sentRt.clear();
     return this.#send("rt-lost");
   }
-  command(name, value) { return this.#send(name, value); }
+  command(name, value) { return this.#send(name, name === "board" && value === undefined ? "0" : value); }
   passengerType(type) {
     return this.#send("pax", String(type === "supergold" ? 2 : type === "standard" ? 1 : 0));
   }
   destination(k, { lat, lon }) {
     const [x, y] = this.proj.toXY(lat, lon);
     return this.#send("dest-at", `${k} ${x} ${y}`);
+  }
+  boardProposed({ at = null, dest = null } = {}) {
+    const st = this.state, b = this.active && st.board >= 0 ? this.active.rows[st.board] : null;
+    let rivals = [];
+    if (b && dest && this.lastClock && this.transit && this.transit.rivals) {
+      const stop = this.activePattern.stops[st.board];
+      rivals = this.transit.rivals({ date: this.lastClock.date, now: this.lastClock.secs, at: at || { lat: stop.lat, lon: stop.lon },
+        tripId: this.transit.tripIds[this.active.tripNo], dest });
+    }
+    this.#send("board", rivals.length ? `0 ${rivals.length}` : "0");
+    if (this.state.note !== 7 || !b) return null;
+    const tripId = this.transit.tripIds[this.active.tripNo];
+    return [serviceRow(this.transit.index, tripId, { stopId: b.stopId, seq: b.seq, dep: b.sched }, true), ...rivals];
+  }
+
+  boardService({ tripId, seq, alightSeq = null }) {
+    this.boarding = { tripId, seq, alightSeq };
+    this.answeredA = "";                    // the same trip may be activated again
+    this.#send("board", "1");
+    this.boarding = null;
+    return this.state.state === "ON_BUS" && this.journeyRecord()?.tripId === tripId;
+  }
+  journeyRecord() {
+    const st = this.state;
+    if (!this.active || !st.bus || (st.state !== "ON_BUS" && st.state !== "WALKING_FINAL")) return null;
+    const b = this.active.rows[st.bus.board], a = this.active.rows[st.bus.alight];
+    if (!b || !a) return null;
+    const tripId = this.transit.tripIds[this.active.tripNo];
+    return { phase: st.state, tripId, routeId: this.transit.index.trips.get(tripId).route_id,
+      boardStopId: b.stopId, boardSeq: b.seq, boardSecs: b.sched, alightStopId: a.stopId, alightSeq: a.seq };
+  }
+
+  origin(point) {
+    if (!point) return this.#send("dest-at", "-1");
+    const [x, y] = this.proj.toXY(point.lat, point.lon);
+    return this.#send("dest-at", `-1 ${x} ${y}`);
   }
 
   retained() {
@@ -201,6 +239,14 @@ export class JourneyHost {
       if (q && q.gen !== this.answeredQ && this.lastClock) {
         this.answeredQ = q.gen;
         const [oLat, oLon] = this.proj.toLatLon(q.ox, q.oy), [dLat, dLon] = this.proj.toLatLon(q.dx, q.dy);
+        if (this.boarding) {
+          const b = this.boarding;
+          this.boarding = null;
+          const set = this.transit.boarded({ date: this.lastClock.date, tripId: b.tripId, seq: b.seq, dest: { lat: dLat, lon: dLon },
+            radiusD: q.radiusD, alightSeq: b.alightSeq ?? null });
+          this.candidates(set || { stops: [], dsts: [], trips: [], calls: [], arrs: [], truncated: false }, q.gen);
+          continue;
+        }
         this.candidates(this.transit.candidates({
           date: this.lastClock.date, now: this.lastClock.secs, origin: { lat: oLat, lon: oLon }, dest: { lat: dLat, lon: dLon },
           radiusO: q.radiusO, radiusD: q.radiusD, horizon: q.horizon, k: q.k, c: q.c, a: q.a, reach: q.reach,

@@ -1,4 +1,6 @@
 
+import { serviceRow, byNow } from "./boarding.js";
+
 export const PAGE_LIMITS = { stops: 40, dsts: 24, trips: 24, calls: 64, arrs: 48 };
 const NONE = Number.POSITIVE_INFINITY;
 
@@ -128,4 +130,48 @@ export function pageCandidates(set, limits = PAGE_LIMITS) {
   if (page && page.trips.length) pages.push(page);
   for (const p of pages) { p.stops = [...p.stopSet].sort((x, y) => x - y); p.dsts = [...p.dstSet].sort((x, y) => x - y); delete p.stopSet; delete p.dstSet; }
   return pages;
+}
+
+export function boardedCandidates(index, { date, tripId, seq, dest, radiusD, alightSeq = null }) {
+  const tr = index.trips.get(tripId), rows = index.tripTimes.get(tripId);
+  if (!tr || !rows || !index.activeServices(date).has(tr.service_id)) return null;
+  const b = rows.find((r) => r.seq === seq);
+  if (!b) return null;
+  let after = rows.filter((r) => r.seq > seq);
+  let dsts;
+  if (alightSeq !== null) {
+    after = after.filter((r) => r.seq === alightSeq);
+    if (!after.length) return null;
+    const s = index.stops.get(after[0].stopId);
+    dsts = [{ ref: 0, stopId: s.stop_id, name: s.stop_name, lat: s.lat, lon: s.lon }];
+  } else {
+    dsts = index.stopsNear(dest.lat, dest.lon, radiusD).map((x, i) => ({ ref: i, stopId: x.stop.stop_id, name: x.stop.stop_name, lat: x.stop.lat, lon: x.stop.lon }));
+  }
+  const dRef = new Map(dsts.map((d) => [d.stopId, d.ref]));
+  const ta = after.filter((r) => dRef.has(r.stopId));
+  const s = index.stops.get(b.stopId), route = index.routes.get(tr.route_id) || {};
+  return {
+    query: { date, now: b.dep, origin: { lat: s.lat, lon: s.lon }, dest, radiusO: 0, radiusD, horizon: 0, boarded: tripId },
+    stops: [{ ref: 0, stopId: s.stop_id, name: s.stop_name, lat: s.lat, lon: s.lon }],
+    dsts,
+    trips: ta.length ? [{ ref: 0, tripId, patternId: index.tripPattern.get(tripId), route: route.route_short_name || tr.route_id,
+      dir: +tr.direction_id, headsign: tr.trip_headsign, firstArr: 0, lastArr: ta.length - 1 }] : [],
+    calls: ta.length ? [{ tripRef: 0, stopRef: 0, seq: b.seq, secs: b.dep }] : [],
+    arrs: ta.map((r) => ({ tripRef: 0, dstRef: dRef.get(r.stopId), seq: r.seq, secs: r.arr })),
+    truncated: false,
+    stats: {},
+  };
+}
+
+export function boardableServices(index, { date, now, at, dest, radiusO = 300, radiusD = 800, before = 1200, after = 300 }) {
+  const set = assembleCandidates(index, { date, now: now - before, origin: at, dest, radiusO, radiusD, horizon: before + after });
+  const out = [];
+  for (const t of set.trips) {
+    const later = (c) => set.arrs.some((a, i) => i >= t.firstArr && i <= t.lastArr && a.seq > c.seq);
+    const calls = set.calls.filter((c) => c.tripRef === t.ref && later(c)).sort((x, y) => x.stopRef - y.stopRef || x.seq - y.seq);
+    if (!calls.length) continue;
+    const c = calls[0], s = set.stops[c.stopRef];
+    out.push(serviceRow(index, t.tripId, { stopId: s.stopId, seq: c.seq, dep: c.secs }, true));
+  }
+  return out.sort(byNow(now));
 }

@@ -52,15 +52,17 @@ walk-s: func [d] [ / * d 100 pf 'walk-cms ]
 f-bm: 0
 f-dm: 0
 refresh-geom: func [] [
-    f-bm: either >= j-board 0 [ dist f-x f-y sv j-board 2 sv j-board 3 ] [ 0 ]
-    f-dm: either >= j-dest 0 [ dist f-x f-y j-dx j-dy ] [ 0 ]
+    either either f-have [ either = j-st 'DESTINATION_SELECTED [ 1 ] [ = j-st 'JOURNEY_PROPOSED ] ] [ 1 ] [
+        ax: block-at dest-row 1  ay: block-at dest-row 2 ] [ ax: f-x  ay: f-y ]
+    f-bm: either >= j-board 0 [ dist ax ay sv j-board 2 sv j-board 3 ] [ 0 ]
+    f-dm: either >= j-dest 0 [ dist ax ay j-dx j-dy ] [ 0 ]
 ]
 to-board-m: func [] [ f-bm ]
 to-dest-m: func [] [ f-dm ]
 leave-s: func [] [ - - eta walk-s to-board-m pf 'buffer-s ]
 ask-candidates: func [] [ j-q: 1  j-qgen: + j-qgen 1 ]
 plan: func [] [
-    either f-have [
+    either either block-at dest-row 0 [ 1 ] [ > f-have 0 ] [
         either = j-q 0 [
             either <= to-dest-m c 'walk-only-m [ walk-only ] [
                 j-rad: either > pf 'walk-max-m c 'search-m [ pf 'walk-max-m ] [ c 'search-m ]
@@ -85,8 +87,14 @@ on-trip-ready: func [no bk ak n] [
             jt-n: n
             j-opt: 1
             refresh-geom
-            either = j-st 'DESTINATION_SELECTED [ j-st: 'JOURNEY_PROPOSED ] [ none ]
-            pre-board
+            either block-at cq-n 15 [
+                block-set! cq-n 15 0
+                enter-bus
+                either < al block-at cq-best 3 3 m-t [ m-t: al block-at cq-best 3 3 ] [ none ]
+            ] [
+                either = j-st 'DESTINATION_SELECTED [ j-st: 'JOURNEY_PROPOSED ] [ none ]
+                pre-board
+            ]
             eval-fare
         ] [ none ]
     ] [ none ]
@@ -101,7 +109,8 @@ pre-board: func [] [
                 gone: either = j-st 'WAITING_FOR_BUS [
                     < eta - 0 c 'missed-bus-s
                 ] [ < eta walk-s to-board-m ]
-                either gone [ j-note: 1  j-rad: either > pf 'walk-max-m c 'search-m [ pf 'walk-max-m ] [ c 'search-m ]  ask-candidates ] [ none ]
+                either gone [ either either block-at dest-row 0 [ 1 ] [ > f-have 0 ] [
+                    j-note: 1  j-rad: either > pf 'walk-max-m c 'search-m [ pf 'walk-max-m ] [ c 'search-m ]  ask-candidates ] [ none ] ] [ none ]
             ] [ none ]
         ] ]
         j-leave: either > j-opt 0 [
@@ -162,6 +171,7 @@ waiting-update: func [] [
 enter-bus: func [] [
     j-st: 'ON_BUS
     j-leave: 'NONE
+    either = j-note 7 [ j-note: 0 ] [ none ]
     bs: sv j-board 0
     m-s: either > mt-s bs [ mt-s ] [ bs ]
     hist-fill m-s
@@ -169,6 +179,7 @@ enter-bus: func [] [
     m-lat: 0
     lat-n: 0
     al-d: 0
+    block-set! m-hist 3 * m-s 128
     j-next: + j-board 1
     press-t: -1
     adv-next
@@ -179,7 +190,7 @@ adv-next: func [] [
         either >= m-s + sv j-next 0 c 'pass-m [ j-next: + j-next 1  adv-next ] [ none ]
     ] [ none ] ] [ none ]
 ]
-m-hist: new-block 3
+m-hist: new-block 4
 m-hk: 0
 med3: func [a b d] [
     lo: either < a b [ a ] [ b ]
@@ -200,6 +211,21 @@ bus-update: func [] [
     track-speed m-s
     adv-next
     bus-alert
+    either = j-st 'ON_BUS [
+        d: block-at m-hist 3
+        either >= mod d 128 99 [
+            j-buzz: 0
+            either >= m-s + / d 128 * 6 c 'back-tol-m [ d: * m-s 128  j-note: 0 ] [ none ]
+        ] [
+            either either >= ev-k 7 [ either <= ev 6 c 'alight-lat-m [ either < ev 6 mt-lat [ < + ev 5 5 / d 128 ] [ 0 ] ] [ 0 ] ] [ 0 ] [
+                d: + * ev 5 128 + mod d 128 1
+                either >= mod d 128 c 'alight-fixes [ either >= - m-s ev 5 * 6 c 'back-tol-m [
+                    d: + * m-s 128 99  j-buzz: 1 ] [ none ] ] [ none ]
+            ] [ d: * m-s 128 ]
+        ]
+        block-set! m-hist 3 d
+        either >= mod d 128 99 [ j-alert: 'NONE  press-t: -1  j-note: 8 ] [ none ]
+    ] [ none ]
 ]
 stops-to-go: func [] [ + 1 - j-alight j-next ]
 bus-alert: func [] [
@@ -271,16 +297,16 @@ reset-journey: func [] [
     j-st: 'IDLE  j-dest: -1  j-opt: -1  j-board: -1  j-alight: -1
     j-alert: 'NONE  j-leave: 'NONE  j-note: 0  j-where: 0  j-walk: 0  j-buzz: 0
     fare-r: 'unknown  fare-ri: -1
-    j-q: 0  j-g: 0  j-trip: -1  j-bseq: -1  j-aseq: -1  j-lnow: 0
-    jt-n: 0  jw-clear 0  due-t: -100000  w-t: -100000
+    j-q: 0  j-g: 0  j-trip: -1  j-bseq: -1  j-aseq: -1  j-lnow: 0  block-set! m-hist 3 0
+    jt-n: 0  jw-clear 0  due-t: -100000  w-t: -100000  block-set! cq-n 15 0
 ]
 choose: func [k] [
     reset-journey
     either < k dest-n [
         j-dest: k
-        either = block-at dest-row * 3 k 0 [ j-note: 5 ] [
-            j-dx: block-at dest-row + * 3 k 1
-            j-dy: block-at dest-row + * 3 k 2
+        either = block-at dest-row + * 3 k 3 0 [ j-note: 5 ] [
+            j-dx: block-at dest-row + * 3 k 4
+            j-dy: block-at dest-row + * 3 k 5
             j-st: 'DESTINATION_SELECTED
             refresh-geom
             plan
@@ -289,11 +315,15 @@ choose: func [k] [
 ]
 accept: func [] [
     either = j-st 'JOURNEY_PROPOSED [
-        either j-walk [ enter-final ] [ j-st: 'WALKING_TO_STOP  walking-update ]
+        block-set! dest-row 0 0
+        either f-have [ block-set! dest-row 1 f-x  block-set! dest-row 2 f-y ] [ none ]
+        either j-walk [ enter-final  refresh-geom ] [ j-st: 'WALKING_TO_STOP  refresh-geom  walking-update ]
     ] [ none ]
 ]
-board-cmd: func [] [
-    either = j-st 'WALKING_TO_STOP [ enter-bus ] [ either = j-st 'WAITING_FOR_BUS [ enter-bus ] [ none ] ]
+board-cmd: func [n] [
+    either either = j-st 'WALKING_TO_STOP [ 1 ] [ = j-st 'WAITING_FOR_BUS ] [
+        either > n 0 [ j-note: 7 ] [ enter-bus ]
+    ] [ none ]
 ]
 alight-cmd: func [] [ either = j-st 'ON_BUS [ enter-final ] [ none ] ]
 ]

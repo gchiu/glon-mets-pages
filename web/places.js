@@ -192,6 +192,46 @@ export class FareSetting {
   }
 }
 
+export const ORIGIN_KEY = "dd-origin-v1";
+export const ORIGIN_KINDS = ["place", "stop", "landmark"];
+function validOrigin(o) {
+  if (!o || o.v !== 1 || !ORIGIN_KINDS.includes(o.kind) || typeof o.ref !== "string" || !o.ref) return null;
+  if (o.kind === "place") return { kind: "place", ref: o.ref };
+  const name = cleanName(o.name);
+  if (!name || !isCoord(o.lat, 90) || !isCoord(o.lon, 180)) return null;
+  return { kind: o.kind, ref: o.ref, name, lat: o.lat, lon: o.lon };
+}
+export class OriginSetting {
+  constructor(storage = globalThis.localStorage) {
+    this.storage = storage;
+    this.value = null;
+    this.recovered = false;
+    let raw = null;
+    try { raw = storage ? storage.getItem(ORIGIN_KEY) : null; } catch { raw = null; }
+    if (raw == null) return;
+    try { this.value = validOrigin(JSON.parse(raw)); } catch { this.value = null; }
+    this.recovered = !this.value;
+  }
+  resolve(places) {
+    const o = this.value;
+    if (!o) return null;
+    if (o.kind !== "place") return { name: o.name, lat: o.lat, lon: o.lon };
+    const p = places ? places.get(o.ref) : null;
+    return p ? { name: p.name, lat: p.lat, lon: p.lon } : null;
+  }
+  set(o) {
+    const v = validOrigin({ v: 1, ...o });
+    if (!v) throw new Error("That place has no location.");
+    this.value = v;
+    try { this.storage.setItem(ORIGIN_KEY, JSON.stringify({ v: 1, ...v })); } catch { /* kept for this session */ }
+    return v;
+  }
+  clear() {
+    this.value = null;
+    try { this.storage.removeItem(ORIGIN_KEY); } catch { /* nothing kept */ }
+  }
+}
+
 export function setupStep(places, fare) {
   if (!places.home()) return "home";
   if (!fare.type) return "fare";

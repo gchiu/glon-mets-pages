@@ -1,5 +1,6 @@
 
-import { assembleCandidates } from "./candidates.js";
+import { assembleCandidates, boardedCandidates, boardableServices } from "./candidates.js";
+import { directionRivals } from "./boarding.js";
 import { metres } from "../gtfs/gtfs-index.js";
 
 const RAD = Math.PI / 180;
@@ -48,6 +49,13 @@ export class GtfsTransitProvider {
     return set;
   }
 
+  boarded(query) {
+    const set = boardedCandidates(this.index, query);
+    if (set) for (const t of set.trips) { t.tripNo = this.tripNoOf.get(t.tripId); t.patNo = this.patNoOf.get(t.patternId); }
+    return set;
+  }
+  boardable(query) { return boardableServices(this.index, query); }
+  rivals(query) { return directionRivals(this.index, query); }
   stopVertices(patNo) {
     if (this.vertexCache.has(patNo)) return this.vertexCache.get(patNo);
     const p = this.index.patterns.get(this.patIds[patNo]);

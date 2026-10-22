@@ -40,6 +40,13 @@ button { font: inherit; border: 1px solid var(--line); background: var(--card); 
 @keyframes pulse { 50% { filter: brightness(1.25); } }
 @media (prefers-reduced-motion: reduce) { .a-PRESS_STOP { animation: none; } }
 .info { margin: 8px 0; }
+.fromto { margin: 8px 0 4px; }
+.fromto .ft { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+.fromto .ft .k { min-width: 3em; }
+.fromto .ft b { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.fromto .ft button { min-height: 40px; padding: 6px 12px; }
+.fromto .hint { color: var(--muted); font-size: 0.9rem; margin: 4px 0 0; }
+.fromto .hint button { min-height: 40px; padding: 6px 12px; margin-left: 4px; font-size: 0.9rem; }
 .strip { list-style: none; padding: 0 0 0 4px; margin: 12px 0; border-left: 3px solid var(--line); }
 .strip li { padding: 6px 0 6px 12px; color: var(--muted); }
 .strip .you { color: var(--you); font-weight: 800; }

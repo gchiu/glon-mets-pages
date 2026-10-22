@@ -1,12 +1,12 @@
-const VERSION = "dd-routes-sw1";
+const VERSION = "dd-journey-sw2";
 const OWN = (k) => k.startsWith("dd-");
 const SHELL = [
   "./", "index.html", "manifest.webmanifest",
   "web/style.css", "web/icon.svg", "web/icon-192.png", "web/icon-512.png", "web/icon-maskable-192.png", "web/icon-maskable-512.png", "web/apple-touch-icon.png", "web/app.js", "web/boot.js", "web/glon-machine.js", "web/glon-data.js",
   "web/geo.js", "web/clock.js", "web/journey-host.js", "web/view-model.js", "web/ui.js", "web/effects.js",
-  "web/location/location-providers.js", "web/transit/gtfs-transit.js", "web/transit/candidates.js",
+  "web/location/location-providers.js", "web/transit/gtfs-transit.js", "web/transit/candidates.js", "web/transit/boarding.js",
   "web/transit/metlink-realtime.js", "web/realtime-settings.js", "web/transit/active-trip.js", "web/transit/route-measure.js",
-  "web/gtfs/gtfs-index.js", "web/gtfs/network.js", "web/network-store.js", "web/startup.js", "web/places.js", "web/geocoder.js", "config/landmarks.json",
+  "web/gtfs/gtfs-index.js", "web/gtfs/network.js", "web/network-store.js", "web/startup.js", "web/places.js", "web/active-journey.js", "web/geocoder.js", "config/landmarks.json",
   "web/sim/journey-sim.js", "web/sim/scenarios.js",
   "vendor/glon/glon-kaka.wasm", "vendor/glon/prelude.glon", "vendor/glon/strings.glon", "vendor/glon/kaka-lib-subset.glon",
   "glon/dd-support.glon", "glon/route-match.glon", "glon/fare.glon", "glon/journey.glon", "glon/candidates.glon", "glon/choice.glon", "glon/view.glon", "glon/app.glon",
